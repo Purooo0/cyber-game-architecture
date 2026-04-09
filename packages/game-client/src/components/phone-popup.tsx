@@ -26,6 +26,9 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 
+// ─── Imports ───────────────────────────────────────────────────────────────
+import { API_URL } from '../lib/api'
+
 // ─── Types ─────────────────────────────────────────────────────────────────
 type PhoneScreen = 'home' | 'email' | 'phishing-form' | 'feedback-report' | 'feedback-delete'
 
@@ -114,7 +117,7 @@ function FeedbackQuizView({ quiz, actionLabel, onSuccess, sessionId, actionType 
         isCorrect
       })
 
-      const response = await fetch('/api/game/feedback', {
+      const response = await fetch(`${API_URL}/api/game/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

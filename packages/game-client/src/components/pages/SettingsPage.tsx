@@ -19,6 +19,7 @@ import { Card } from '../ui/card'
 import { Badge } from '../ui/badge'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
+import { API_URL } from '../../lib/api'
 
 interface SettingsPageProps {
   onNavigate?: (page: string) => void
@@ -58,7 +59,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       if (!token) return
       
       try {
-        const response = await fetch('/api/user/profile', {
+        const response = await fetch(`${API_URL}/api/user/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -134,7 +135,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
         console.log('[handleSave] Updating profile - Username:', formData.username, 'Avatar:', avatarBase64 ? 'yes' : 'no')
 
-        const profileResponse = await fetch('/api/user/profile', {
+        const profileResponse = await fetch(`${API_URL}/api/user/profile`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -156,7 +157,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       // Update password if provided
       if (formData.newPassword) {
         console.log('[handleSave] Updating password...')
-        const passwordResponse = await fetch('/api/user/password', {
+        const passwordResponse = await fetch(`${API_URL}/api/user/password`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,

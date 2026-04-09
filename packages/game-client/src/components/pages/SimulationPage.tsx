@@ -141,7 +141,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         if (!token) return
 
         try {
-          const startResponse = await fetch('/api/game/start', {
+          const startResponse = await fetch(`${API_URL}/api/game/start`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -325,7 +325,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
       }
       console.log(`[🎮 LOG ACTION] Request body:`, body)
       
-      const response = await fetch('/api/game/action', {
+      const response = await fetch(`${API_URL}/api/game/action`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -372,7 +372,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     console.log('[SimulationPage] Sending scenario completion for session:', missionSessionId);  // ✅ Log correct sessionId!
 
     try {
-      const response = await fetch('/api/game/finish', {
+      const response = await fetch(`${API_URL}/api/game/finish`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -407,7 +407,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
       try {
         // Start game session on mount
         try {
-          const startResponse = await fetch('/api/game/start', {
+          const startResponse = await fetch(`${API_URL}/api/game/start`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -494,7 +494,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         // ✅ NEW: Fetch feedback questions from backend
         try {
           setQuestionsLoading(true)
-          const questionsResponse = await fetch('/api/game/questions', {
+          const questionsResponse = await fetch(`${API_URL}/api/game/questions`, {
             headers: { Authorization: `Bearer ${token}` }
           })
           if (questionsResponse.ok) {
@@ -589,7 +589,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     if (gameSessionId) {
       try {
         const token = getToken()
-        await fetch('/api/game/finish', {
+        await fetch(`${API_URL}/api/game/finish`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -655,7 +655,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     const token = getToken()
     if (token) {
       try {
-        const startResponse = await fetch('/api/game/start', {
+        const startResponse = await fetch(`${API_URL}/api/game/start`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -869,7 +869,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         return
       }
 
-      await fetch('/api/game/finish', {
+      await fetch(`${API_URL}/api/game/finish`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

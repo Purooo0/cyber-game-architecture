@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Download, Filter, Search } from 'lucide-react'
+import { API_URL } from '../../lib/api'
 
 interface FeedbackAnswer {
   userId: string
@@ -52,7 +53,7 @@ export default function AdminFeedbackPage() {
         endpoint = `/api/game/admin/feedback/scenario/${filterScenario}`
       }
 
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

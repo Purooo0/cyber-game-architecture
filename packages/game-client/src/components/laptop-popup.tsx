@@ -11,6 +11,7 @@ import {
   Play, RotateCcw, Zap, Cpu,
 } from 'lucide-react'
 import { Card } from './ui/card'
+import { API_URL } from '../lib/api'
 
 type LaptopScreen =
   | 'desktop'
@@ -90,7 +91,7 @@ const FeedbackQuizView: React.FC<FeedbackQuizViewProps> = ({ quiz, onSuccess, on
         isCorrect
       })
 
-      const response = await fetch('/api/game/feedback', {
+      const response = await fetch(`${API_URL}/api/game/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

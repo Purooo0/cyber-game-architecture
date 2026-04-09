@@ -245,7 +245,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
         // ✅ NEW: Fetch feedback questions from backend
         try {
           setQuestionsLoading(true)
-          const questionsResponse = await fetch('/api/game/questions', {
+          const questionsResponse = await fetch(`${API_URL}/api/game/questions`, {
             headers: { Authorization: `Bearer ${getToken()}` }
           })
           if (questionsResponse.ok) {
