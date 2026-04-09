@@ -189,3 +189,4 @@ database.json
 # If sprite sheets are auto-generated from scripts/generate_sprites.py
 # Uncomment if needed:
 # public/generated_sprites/
+packages/game-server/src/*.json
