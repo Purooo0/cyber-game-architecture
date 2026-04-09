@@ -1,0 +1,27 @@
+{
+  "name": "@cyber-game/game-server",
+  "version": "1.0.0",
+  "description": "Game Server - Backend dengan Node.js dan Firebase",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "build": "echo 'No build needed'",
+    "lint": "echo 'Lint game-server'",
+    "test": "echo 'Run tests'"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-async-errors": "^3.1.1",
+    "firebase-admin": "^13.7.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

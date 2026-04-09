@@ -1,0 +1,311 @@
+/* ===================================
+   LAPTOP PROMPT COMPONENT STYLES
+   Pixel Art Style Dialog
+   ================================== */
+
+.laptop-prompt-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease-out;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.laptop-prompt-container.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.laptop-prompt-container.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Overlay Background */
+.laptop-prompt-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+/* Grid Background Pattern */
+.laptop-prompt-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+}
+
+/* Main Dialog Container */
+.laptop-prompt-dialog {
+  position: relative;
+  z-index: 10000;
+  width: 480px;
+  max-width: 90vw;
+  background-color: #ffffff;
+  border: 8px solid #2c2c2c;
+  box-shadow: 12px 12px 0px rgba(0, 0, 0, 0.4);
+  animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Dialog Header */
+.laptop-prompt-header {
+  background-color: #4a90e2;
+  border-bottom: 4px solid #2c2c2c;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.laptop-prompt-icon-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.laptop-prompt-icon {
+  width: 32px;
+  height: 24px;
+  background-color: #2c2c2c;
+  border: 2px solid #1a1a1a;
+  position: relative;
+  image-rendering: pixelated;
+}
+
+.laptop-prompt-icon::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  background-color: #4a90e2;
+}
+
+.laptop-prompt-title {
+  color: #ffffff;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+
+/* Dialog Body */
+.laptop-prompt-body {
+  padding: 32px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+/* Question Text */
+.laptop-prompt-question {
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  font-size: 28px;
+  color: #2c2c2c;
+  letter-spacing: 1px;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.laptop-prompt-text-line {
+  margin: 8px 0;
+}
+
+/* Buttons Container */
+.laptop-prompt-buttons {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+/* Button Base Styles */
+.laptop-prompt-button {
+  width: 140px;
+  padding: 16px 12px;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  font-size: 20px;
+  letter-spacing: 2px;
+  border: 6px solid #2c2c2c;
+  cursor: pointer;
+  transition: all 0.1s ease-out;
+  text-transform: uppercase;
+  image-rendering: pixelated;
+  outline: none;
+  user-select: none;
+  text-align: center;
+}
+
+/* YES Button */
+.laptop-prompt-yes-btn {
+  background-color: #4CAF50;
+  color: #ffffff;
+  box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.3);
+}
+
+.laptop-prompt-yes-btn:active,
+.laptop-prompt-yes-btn.hovered {
+  background-color: #45a049;
+  box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4);
+  transform: translate(2px, 2px);
+}
+
+/* NO Button */
+.laptop-prompt-no-btn {
+  background-color: #f44336;
+  color: #ffffff;
+  box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.3);
+}
+
+.laptop-prompt-no-btn:active,
+.laptop-prompt-no-btn.hovered {
+  background-color: #d32f2f;
+  box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4);
+  transform: translate(2px, 2px);
+}
+
+/* Dialog Footer */
+.laptop-prompt-footer {
+  height: 16px;
+  background-color: #e0e0e0;
+  border-top: 4px solid #2c2c2c;
+}
+
+/* Character Indicator */
+.laptop-prompt-character {
+  position: absolute;
+  bottom: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 10001;
+}
+
+.laptop-prompt-character-box {
+  width: 48px;
+  height: 48px;
+  background-color: #ff5252;
+  border: 4px solid #2c2c2c;
+  position: relative;
+  image-rendering: pixelated;
+}
+
+/* Simple pixel face */
+.laptop-prompt-character-box::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  background-color: #ffffff;
+}
+
+.laptop-prompt-character-box::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background-color: #ffffff;
+}
+
+.laptop-prompt-character-arrow {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: #2c2c2c;
+  font-weight: bold;
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+/* Animations */
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translateY(-50px);
+  }
+  50% {
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translateY(-4px);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .laptop-prompt-dialog {
+    width: 340px;
+  }
+
+  .laptop-prompt-body {
+    padding: 24px 20px;
+    gap: 24px;
+  }
+
+  .laptop-prompt-question {
+    font-size: 22px;
+  }
+
+  .laptop-prompt-button {
+    width: 120px;
+    padding: 12px 8px;
+    font-size: 18px;
+  }
+
+  .laptop-prompt-buttons {
+    gap: 16px;
+  }
+}
+
+/* Modal-like behavior - no scrolling when visible */
+.laptop-prompt-container.visible ~ body {
+  overflow: hidden;
+}

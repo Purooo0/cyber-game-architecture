@@ -1,0 +1,10 @@
+{
+  "css.lint.unknownAtRules": "ignore",
+  "files.exclude": {
+    "**/*.xml": {
+      "when": "$(basename) =~ .*_tileset\\.xml$"
+    }
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

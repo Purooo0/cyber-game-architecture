@@ -1,0 +1,191 @@
+# ========================================
+# CYBER GAME - ROOT .gitignore
+# ========================================
+# This file prevents committed files that cause npm install issues
+# See explanation below
+
+# ========================================
+# 🚨 CRITICAL: node_modules/
+# ========================================
+# WHY IGNORE node_modules?
+# 1. Size: ~500MB-1GB (makes repo huge!)
+# 2. Platform-specific binaries:
+#    - Windows: .dll files
+#    - macOS: .dylib files
+#    - Linux: .so files
+#    - Node native modules compile differently per OS
+# 3. When cloned on different machine:
+#    - npm install reads package-lock.json
+#    - Downloads fresh copies for THAT operating system
+#    - If Windows build in node_modules committed, Mac npm install fails!
+# 4. Monorepo issue:
+#    - packages/game-client/node_modules: ~400MB
+#    - packages/game-server/node_modules: ~100MB
+#    - Total bloat: 500MB+ per commit!
+#
+# SOLUTION: Commit package-lock.json instead!
+# - npm install akan read package-lock.json
+# - Akan download exact same versions untuk OS yang dipakai
+# - Lebih cepat, lebih aman, lebih reliable
+#
+# ✅ CORRECT WORKFLOW:
+#   1. npm install        # Generates node_modules/ locally
+#   2. npm install        # Next developer: reads package-lock.json
+#   3. node_modules/      # Generated locally, NOT committed
+#   4. Everyone has consistent dependencies!
+
+node_modules/
+
+# ========================================
+# Lock Files (Platform-specific)
+# ========================================
+# These ARE committed but can be regenerated
+package-lock.json    # npm (can regenerate, but commit for consistency)
+yarn.lock           # yarn (alternative to npm)
+pnpm-lock.yaml      # pnpm (alternative to npm)
+*.lock              # Generic lock files
+
+# ========================================
+# Environment Variables (SENSITIVE!)
+# ========================================
+.env                # Local environment (never commit!)
+.env.local          # Local overrides (never commit!)
+.env.*.local        # Environment-specific (never commit!)
+.env.production     # Production secrets (never commit!)
+.env.development    # Dev secrets (never commit!)
+
+# Firebase credentials (VERY SENSITIVE!)
+firebase-adminsdk-*.json
+firebase-key.json
+*.firebase.json
+
+# ========================================
+# Build Output (Regenerate after clone)
+# ========================================
+dist/               # Production build output (Vite, Next.js)
+build/              # Alternate build output
+.next/              # Next.js build output
+out/                # Build output
+
+# ========================================
+# Logs (Never commit, can grow huge!)
+# ========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+pm2.log
+
+# ========================================
+# IDE & Editor Files (Personal settings)
+# ========================================
+.vscode/            # VS Code settings
+.idea/              # IntelliJ IDEs (PhpStorm, WebStorm, etc)
+*.swp               # vim swap files
+*.swo               # vim backup files
+*.sw[a-z]           # vim all swap files
+*~                  # emacs backup files
+.project            # Eclipse project file
+.classpath          # Eclipse classpath file
+.c9/                # Cloud9 IDE settings
+
+# ========================================
+# OS Files (Platform-specific junk)
+# ========================================
+.DS_Store           # macOS folder metadata
+Thumbs.db           # Windows thumbnail cache
+.windows-build-tools/ # Windows build tools
+desktop.ini         # Windows folder config
+.Spotlight-V100     # macOS search index
+.Trashes            # macOS trash
+
+# ========================================
+# Temporary Files (Auto-generated)
+# ========================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.cache
+.cache/
+tmp/
+temp/
+
+# ========================================
+# OS Specific Directories
+# ========================================
+$RECYCLE.BIN/       # Windows recycle bin
+.trash/             # Linux trash
+
+# ========================================
+# Test Coverage (Generated)
+# ========================================
+coverage/
+.nyc_output/
+*.lcov
+.coverage
+
+# ========================================
+# Dependency audit lock files
+# ========================================
+npm-audit-*.json
+yarn-audit-*.json
+
+# ========================================
+# Python (from scripts/)
+# ========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ========================================
+# Node-specific
+# ========================================
+.npm/
+.eslintcache
+.node_repl_history
+*.tsbuildinfo
+
+# ========================================
+# Database (if used)
+# ========================================
+*.db
+*.sqlite
+*.sqlite3
+database.json
+
+# ========================================
+# Misc (that shouldn't be committed)
+# ========================================
+.DS_Store
+.env.example    # Usually should be committed, but if auto-generated, ignore
+*.orig          # Merge conflict originals
+.merges/
+
+# ========================================
+# Game-specific Generated Files
+# ========================================
+# If sprite sheets are auto-generated from scripts/generate_sprites.py
+# Uncomment if needed:
+# public/generated_sprites/

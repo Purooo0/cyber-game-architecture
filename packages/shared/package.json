@@ -1,0 +1,14 @@
+{
+  "name": "@cyber-game/shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./types": "./src/types/index.js",
+    "./constants": "./src/constants/index.js",
+    "./utils": "./src/utils/index.js"
+  },
+  "devDependencies": {}
+}

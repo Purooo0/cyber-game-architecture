@@ -1,0 +1,27 @@
+{
+  "name": "cyber-game-architecture",
+  "version": "1.0.0",
+  "description": "Cybersecurity Educational Game - Architecture",
+  "private": true,
+  "workspaces": [
+    "packages/game-client",
+    "packages/game-server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=packages/game-client",
+    "dev:all": "npm run dev:all --workspaces",
+    "build": "npm run build --workspaces",
+    "preview": "npm run preview --workspace=packages/game-client",
+    "server": "npm run dev --workspace=packages/game-server",
+    "type-check": "npm run type-check --workspaces",
+    "lint": "npm run lint --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "terser": "^5.46.0"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.2.4",
+    "class-variance-authority": "^0.7.1"
+  }
+}
