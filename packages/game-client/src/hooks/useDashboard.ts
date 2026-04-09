@@ -111,7 +111,7 @@ export const useUserProfile = (token?: string | null) => {
     cache.loading = true
     cache.promise = (async () => {
       try {
-        const response = await fetch(`${API_URL}/user/profile`, {
+        const response = await fetch(`${API_URL}/api/user/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -211,7 +211,7 @@ export const useUserStats = (token?: string | null) => {
     cache.loading = true
     cache.promise = (async () => {
       try {
-        const response = await fetch(`${API_URL}/user/stats`, {
+        const response = await fetch(`${API_URL}/api/user/stats`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -287,7 +287,7 @@ export const useUserBadges = (token?: string | null) => {
     console.log('[useUserBadges] Fetching with token:', token.substring(0, 20) + '...')
     setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/user/badges`, {
+      const response = await fetch(`${API_URL}/api/user/badges`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -349,7 +349,7 @@ export const useAvailableMissions = (token?: string | null) => {
       try {
         console.log('[useAvailableMissions] Fetching missions with auth')
         // ✅ Missions endpoint now requires auth
-        const response = await fetch(`${API_URL}/user/missions`, {
+        const response = await fetch(`${API_URL}/api/user/missions`, {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,  // ✅ Send token!
@@ -394,7 +394,7 @@ export const useLeaderboard = (limit: number = 10) => {
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
-        const response = await fetch(`${API_URL}/user/leaderboard?limit=${limit}`, {
+        const response = await fetch(`${API_URL}/api/user/leaderboard?limit=${limit}`, {
           headers: {
             'Content-Type': 'application/json',
           },
@@ -440,7 +440,7 @@ export const useUserEndingTracking = (token?: string | null) => {
 
       try {
         console.log('[useUserEndingTracking] Fetching with token:', token.substring(0, 20) + '...')
-        const response = await fetch(`${API_URL}/game/user/endings`, {
+        const response = await fetch(`${API_URL}/api/game/user/endings`, {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
