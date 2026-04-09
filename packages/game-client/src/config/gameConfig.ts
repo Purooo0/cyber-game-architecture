@@ -2,6 +2,8 @@
  * Game Configuration TypeScript Version
  */
 
+import { API_URL } from '../lib/api'
+
 export interface GameConfig {
   apiUrl: string
   gameContainer: string
@@ -14,9 +16,7 @@ export interface GameConfig {
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
-  apiUrl: typeof import.meta.env !== 'undefined' && (import.meta.env as any).VITE_API_URL 
-    ? (import.meta.env as any).VITE_API_URL 
-    : 'http://localhost:3000',
+  apiUrl: API_URL,
   gameContainer: '#game-container',
   uiContainer: '#game-ui-container',
   debug: typeof import.meta.env !== 'undefined' && (import.meta.env as any).DEV ? true : false,

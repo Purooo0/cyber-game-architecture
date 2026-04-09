@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import GameClientService from './services/api'
+import { API_URL } from './lib/api'
 import { LandingPage } from './components/pages/LandingPage'
 import { LoginPage } from './components/pages/LoginPage'
 import { RegisterPage } from './components/pages/RegisterPage'
@@ -41,7 +42,7 @@ const App: React.FC = () => {
   })
 
   const gameClient = new GameClientService({
-    apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    apiUrl: API_URL
   })
 
   // Check if user is already authenticated on mount

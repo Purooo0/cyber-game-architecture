@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-
-const API_URL = 'http://localhost:3000/api'
+import { API_URL } from '../lib/api'
 
 // ✅ OPTIMIZATION: Request deduplication & caching
 const requestCacheRef = {

@@ -28,6 +28,7 @@ import { MentorDialog } from '../mentor-dialog'
 import { PhonePopup } from '../phone-popup'
 import { NPCDialogPopup } from '../npc-dialog-popup'
 import { NPCDialogSystem, type DialogNode } from '../npc-dialog-system'
+import { API_URL } from '../../lib/api'
 import type { TriggerBox, InteractiveObject } from '../../game/types'
 
 interface SimulationPageProps {
@@ -438,10 +439,10 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           console.error('[Backend] Error starting game session:', error)
         }
 
-        // Try both localhost:3000 and proxy path
+        // Try both proxy path and API_URL
         const apiPaths = [
           `/api/game/${scenarioId}`,
-          `http://localhost:3000/api/game/${scenarioId}`
+          `${API_URL}/api/game/${scenarioId}`
         ]
 
         let response = null
@@ -473,7 +474,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
         // Fetch user stats to get their current base score
         try {
-          const userResponse = await fetch('http://localhost:3000/api/user/stats', {
+          const userResponse = await fetch(`${API_URL}/api/user/stats`, {
             headers: { Authorization: `Bearer ${token}` },
           })
           if (userResponse.ok) {
@@ -838,7 +839,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           const token = getToken()
           if (token) {
             try {
-              const statsResponse = await fetch('http://localhost:3000/api/user/stats', {
+              const statsResponse = await fetch(`${API_URL}/api/user/stats`, {
                 headers: { Authorization: `Bearer ${token}` },
               })
               if (statsResponse.ok) {

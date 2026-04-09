@@ -32,6 +32,7 @@ import { MentorDialog } from '../mentor-dialog'
 import { NPCDialogSystem, type DialogNode } from '../npc-dialog-system'
 import { LaptopPopup } from '../laptop-popup'
 import { CafeMenuPopup } from '../cafe-menu-popup'
+import { API_URL } from '../../lib/api'
 import type { TriggerBox, InteractiveObject } from '../../game/types'
 
 interface CafeScenarioPageProps {
@@ -206,7 +207,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
         setLoading(true)
 
         // Start game session
-        const response = await fetch('http://localhost:3000/api/game/start', {
+        const response = await fetch(`${API_URL}/api/game/start`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -227,7 +228,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
         setXp(Math.round((data.session.score || 0) / 10))
 
         // Fetch user stats to get their current base score
-        const userResponse = await fetch('http://localhost:3000/api/user/stats', {
+        const userResponse = await fetch(`${API_URL}/api/user/stats`, {
           headers: { Authorization: `Bearer ${getToken()}` },
         })
         if (userResponse.ok) {
@@ -278,7 +279,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
     }
 
     try {
-      const response = await fetch('http://localhost:3000/api/game/action', {
+      const response = await fetch(`${API_URL}/api/game/action`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -340,7 +341,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
         completed: result === 'success',
       })
 
-      const response = await fetch('http://localhost:3000/api/game/finish', {
+      const response = await fetch(`${API_URL}/api/game/finish`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -385,7 +386,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
         const token = getToken()
         if (token) {
           try {
-            const statsResponse = await fetch('http://localhost:3000/api/user/stats', {
+            const statsResponse = await fetch(`${API_URL}/api/user/stats`, {
               headers: { 'Authorization': `Bearer ${token}` },
             })
             if (statsResponse.ok) {
@@ -692,7 +693,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
     
     // Reinitialize game session
     try {
-      const response = await fetch('http://localhost:3000/api/game/start', {
+      const response = await fetch(`${API_URL}/api/game/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -712,7 +713,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
       setXp(Math.round((data.session.score || 0) / 10))
       
       // Fetch user stats again
-      const userResponse = await fetch('http://localhost:3000/api/user/stats', {
+      const userResponse = await fetch(`${API_URL}/api/user/stats`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       })
       if (userResponse.ok) {
