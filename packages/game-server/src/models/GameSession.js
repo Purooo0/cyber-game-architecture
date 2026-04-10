@@ -11,6 +11,7 @@ export class GameSession {
     this._id = data._id || this.generateId()
     this.userId = data.userId
     this.scenarioId = data.scenarioId
+    this.sceneId = data.sceneId || null  // ✅ NEW: Track which scene is being played
     this.score = data.score || 0
     this.actions = data.actions || []
     this.feedbackAnswers = data.feedbackAnswers || []  // ✅ Track feedback answers
@@ -27,6 +28,7 @@ export class GameSession {
       _id: this._id,
       userId: this.userId,
       scenarioId: this.scenarioId,
+      sceneId: this.sceneId,  // ✅ NEW: Save scene ID
       score: this.score,
       actions: this.actions,
       feedbackAnswers: this.feedbackAnswers,  // ✅ Save feedback answers
@@ -34,7 +36,7 @@ export class GameSession {
       completedAt: this.completedAt
     }
     sessions.set(this._id, dataToSave)
-    console.log(`[GameSession] Saved session: ${this._id}, score=${this.score}, actions=${this.actions.length}, feedback=${this.feedbackAnswers.length}`)
+    console.log(`[GameSession] Saved session: ${this._id}, scenario=${this.scenarioId}, scene=${this.sceneId}, score=${this.score}, actions=${this.actions.length}, feedback=${this.feedbackAnswers.length}`)
     return this
   }
 
