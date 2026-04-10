@@ -362,14 +362,14 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   }
 
   // Utility function to complete scenario with backend
-  const completeScenarioWithBackend = async () => {
+  const completeScenarioWithBackend = async (sceneId?: string) => {
     const token = getToken()
     if (!token || !missionSessionId) {  // ✅ Use missionSessionId, not gameSessionId!
       console.warn('[SimulationPage] Cannot complete scenario: missing token or missionSessionId')
       return
     }
 
-    console.log('[SimulationPage] Sending scenario completion for session:', missionSessionId);  // ✅ Log correct sessionId!
+    console.log('[SimulationPage] Sending scenario completion for session:', missionSessionId, 'sceneId:', sceneId);  // ✅ Log correct sessionId and sceneId!
 
     try {
       const response = await fetch(`${API_URL}/api/game/finish`, {
@@ -379,7 +379,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          sessionId: missionSessionId  // ✅ Use stored sessionId!
+          sessionId: missionSessionId,  // ✅ Use stored sessionId!
+          sceneId: sceneId || 'unknown-ending'  // ✅ NEW: Send sceneId (inferred from mission result)
         })
       })
 
@@ -822,8 +823,10 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
       // After a short delay to let animations finish, complete scenario on backend
       const timer = setTimeout(async () => {
         const isSuccess = missionResult === 'success'
-        console.log(`[Frontend] Completing scenario:`, { isSuccess, score, missionSessionId })
-        const result = await completeScenarioWithBackend()
+        // ✅ NEW: Infer sceneId from mission result
+        const endingSceneId = isSuccess ? 'good-ending' : 'bad-ending'
+        console.log(`[Frontend] Completing scenario:`, { isSuccess, score, missionSessionId, endingSceneId })
+        const result = await completeScenarioWithBackend(endingSceneId)
         
         // Store updated user stats from backend response
         if (result?.data?.userStats) {

@@ -17,6 +17,8 @@ export class GameSession {
     this.feedbackAnswers = data.feedbackAnswers || []  // ✅ Track feedback answers
     this.startedAt = data.startedAt || new Date()
     this.completedAt = data.completedAt || null
+    // ✅ NEW: Track completed scenes per scenario (e.g., { "scenario1": ["intro", "email-view"], "scenario2": ["intro"] })
+    this.completedScenes = data.completedScenes || {}
   }
 
   generateId() {
@@ -33,10 +35,11 @@ export class GameSession {
       actions: this.actions,
       feedbackAnswers: this.feedbackAnswers,  // ✅ Save feedback answers
       startedAt: this.startedAt,
-      completedAt: this.completedAt
+      completedAt: this.completedAt,
+      completedScenes: this.completedScenes  // ✅ NEW: Save completed scenes
     }
     sessions.set(this._id, dataToSave)
-    console.log(`[GameSession] Saved session: ${this._id}, scenario=${this.scenarioId}, scene=${this.sceneId}, score=${this.score}, actions=${this.actions.length}, feedback=${this.feedbackAnswers.length}`)
+    console.log(`[GameSession] Saved session: ${this._id}, scenario=${this.scenarioId}, scene=${this.sceneId}, completedScenes=${JSON.stringify(this.completedScenes)}, score=${this.score}`)
     return this
   }
 

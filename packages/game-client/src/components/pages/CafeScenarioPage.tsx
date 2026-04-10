@@ -331,9 +331,13 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
       return
     }
 
+    // ✅ NEW: Infer sceneId from mission result
+    const endingSceneId = result === 'success' ? 'good-ending' : 'bad-ending'
+
     try {
       console.log('[CafeScenario] Sending game finish to backend...', {
         sessionId: missionSessionId,  // ✅ Use stored sessionId
+        sceneId: endingSceneId,       // ✅ NEW: Send sceneId
         scenarioId,
         score,
         result,
@@ -349,6 +353,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
         },
         body: JSON.stringify({
           sessionId: missionSessionId,  // ✅ Use stored sessionId
+          sceneId: endingSceneId,       // ✅ NEW: Send sceneId
         }),
       })
 
