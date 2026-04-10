@@ -305,7 +305,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   ]
 
   // Utility function to log game action to backend
-  const logGameAction = async (actionType: string, sceneId?: string) => {
+  const logGameAction = async (actionType: string) => {
     console.log('%c[🎮 LOG ACTION] 🚀🚀🚀 CALLED 🚀🚀🚀', 'color: #ffff00; background: #000; font-weight: bold; font-size: 14px')
     const token = getToken()
     if (!gameSessionId || !token) {
@@ -316,17 +316,12 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     try {
       console.log(`%c[🎮 LOG ACTION] 🚀 Logging action: ${actionType}`, 'color: #00ffff; font-weight: bold; font-size: 12px')
       console.log(`  - sessionId: ${gameSessionId}`)
-      console.log(`  - sceneId: ${sceneId || currentMapPath}`)  // ✅ NEW: Log sceneId
       console.log(`  - token prefix: ${token.substring(0, 20)}...`)
-      
-      // ✅ NEW: Use provided sceneId or derive from currentMapPath
-      const currentSceneId = sceneId || currentMapPath.replace(/^\/|\.tmj$/g, '')  // Extract scene name from map path
       
       const body = {
         sessionId: gameSessionId,
         actionType,
-        value: null,
-        sceneId: currentSceneId  // ✅ NEW: Send sceneId to backend
+        value: null
       }
       console.log(`[🎮 LOG ACTION] Request body:`, body)
       

@@ -272,16 +272,13 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
   }, [scenarioId])
 
   // Log action to backend and update score
-  const logGameAction = async (actionType: string, value?: any, sceneId?: string) => {
+  const logGameAction = async (actionType: string, value?: any) => {
     if (!gameSessionId) {
       console.warn('[CafeScenario] No game session ID')
       return
     }
 
     try {
-      // ✅ NEW: Determine sceneId from current state or parameter
-      const currentSceneId = sceneId || 'cafe_scenario'  // Default for cafe scenario
-      
       const response = await fetch(`${API_URL}/api/game/action`, {
         method: 'POST',
         headers: {
@@ -292,7 +289,6 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
           sessionId: gameSessionId,
           actionType,
           value,
-          sceneId: currentSceneId,  // ✅ NEW: Send sceneId to backend
         }),
       })
 
@@ -301,7 +297,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
       }
 
       const data = await response.json()
-      console.log('[CafeScenario] Action logged:', { actionType, sceneId: currentSceneId, sessionScore: data.sessionScore, scoreEarned: data.scoreEarned })
+      console.log('[CafeScenario] Action logged:', { actionType, sessionScore: data.sessionScore, scoreEarned: data.scoreEarned })
 
       // Update UI with new score from session
       setScore(data.sessionScore || 0)

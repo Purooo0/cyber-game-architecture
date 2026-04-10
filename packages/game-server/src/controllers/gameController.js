@@ -10,7 +10,7 @@ import { getScenarioById } from '../services/scenarioService.js'
  */
 export const startGame = async (req, res) => {
   try {
-    const { scenarioId, sceneId } = req.body  // ✅ NEW: Accept sceneId
+    const { scenarioId } = req.body
     const userId = req.userId
     
     if (!scenarioId) {
@@ -20,7 +20,6 @@ export const startGame = async (req, res) => {
     const session = new GameSession({
       userId,
       scenarioId,
-      sceneId: sceneId || null,  // ✅ NEW: Store initial sceneId
       score: 0,
       actions: [],
       startedAt: new Date(),
@@ -37,7 +36,6 @@ export const startGame = async (req, res) => {
         id: session._id,
         userId,
         scenarioId,
-        sceneId: sceneId || null,  // ✅ NEW: Return sceneId
         score: 0
       }
     })
@@ -52,7 +50,7 @@ export const startGame = async (req, res) => {
  */
 export const logGameAction = async (req, res) => {
   try {
-    const { sessionId, actionType, value, sceneId } = req.body  // ✅ NEW: Accept sceneId
+    const { sessionId, actionType, value } = req.body
     
     if (!sessionId || !actionType) {
       return res.status(400).json({ error: 'Missing sessionId or actionType' })
@@ -61,11 +59,6 @@ export const logGameAction = async (req, res) => {
     const session = await GameSession.findById(sessionId)
     if (!session) {
       return res.status(404).json({ error: 'Session not found' })
-    }
-
-    // ✅ NEW: Update sceneId if provided
-    if (sceneId) {
-      session.sceneId = sceneId
     }
 
     const actionScore = ACTION_SCORES[actionType] || 0
@@ -78,11 +71,11 @@ export const logGameAction = async (req, res) => {
     })
 
     session.score = (session.score || 0) + actionScore
-    console.log(`[GameServer] DEBUG logGameAction - Before save: sessionId=${sessionId}, sceneId=${session.sceneId}, score=${session.score}, actions.length=${session.actions.length}`)
+    console.log(`[GameServer] DEBUG logGameAction - Before save: sessionId=${sessionId}, score=${session.score}, actions.length=${session.actions.length}`)
     
     await session.save()
 
-    console.log(`[GameServer] DEBUG logGameAction - After save: sessionId=${sessionId}, sceneId=${session.sceneId}, score=${session.score}`)
+    console.log(`[GameServer] DEBUG logGameAction - After save: sessionId=${sessionId}, score=${session.score}`)
     console.log(`[GameServer] Action logged: ${actionType} (+${actionScore} points, session total: ${session.score})`)
 
     res.json({
@@ -124,14 +117,11 @@ export const finishGame = async (req, res) => {
     let sessionScore = session.score || 0
     console.log(`[GameServer] Game finishing - Session: ${sessionId}, Raw Score: ${sessionScore}`)
 
-    // 🔐 NEW: Check if SCENE already completed to limit scoring
-    // Player can play multiple times but only gets score on FIRST completion of each scene
+    // 🔐 Check if scenario already completed to limit scoring
+    // Player can play multiple times but only gets score on FIRST completion
     const userId = session.userId
     let isFirstCompletion = false
     let scoreToAward = 0
-    
-    // Create unique scene identifier for tracking
-    const sceneIdentifier = `${session.scenarioId}:${session.sceneId || 'default'}`
 
     try {
       const userRef = db.ref(`users/${userId}`)
@@ -139,13 +129,13 @@ export const finishGame = async (req, res) => {
       const user = snapshot.val()
 
       if (user) {
-        const completedScenes = user.completedScenes || []  // ✅ CHANGED: Track scenes, not scenarios
-        isFirstCompletion = !completedScenes.includes(sceneIdentifier)
+        const completedScenarios = user.completedScenarios || []
+        isFirstCompletion = !completedScenarios.includes(session.scenarioId)
         
-        // Only award score if this is FIRST completion of THIS SCENE
+        // Only award score if this is FIRST completion
         scoreToAward = isFirstCompletion ? sessionScore : 0
         
-        console.log(`[GameServer] 📊 Scoring Check - Scene: ${sceneIdentifier}, First Completion: ${isFirstCompletion}, Score To Award: ${scoreToAward}/${sessionScore}`)
+        console.log(`[GameServer] 📊 Scoring Check - Scenario: ${session.scenarioId}, First Completion: ${isFirstCompletion}, Score To Award: ${scoreToAward}/${sessionScore}`)
       }
     } catch (fbError) {
       console.error('[GameServer] Firebase check error:', fbError)
@@ -202,7 +192,7 @@ export const finishGame = async (req, res) => {
       console.error('[GameServer] Firebase update error:', fbError)
     }
 
-    // ✅ Mark SCENE as completed ONLY on first completion with score
+    // ✅ Mark scenario as completed ONLY on first completion with score
     try {
       if (isFirstCompletion && scoreToAward > 0) {
         const userRef = db.ref(`users/${session.userId}`)
@@ -210,24 +200,24 @@ export const finishGame = async (req, res) => {
         const user = snapshot.val()
 
         if (user) {
-          const completedScenes = user.completedScenes || []  // ✅ CHANGED: Track scenes, not scenarios
+          const completedScenarios = user.completedScenarios || []
           
           // Should not exist but double check
-          if (!completedScenes.includes(sceneIdentifier)) {
-            completedScenes.push(sceneIdentifier)
+          if (!completedScenarios.includes(session.scenarioId)) {
+            completedScenarios.push(session.scenarioId)
             
             await userRef.update({
-              completedScenes: completedScenes  // ✅ CHANGED: Update completedScenes, not completedScenarios
+              completedScenarios: completedScenarios
             })
             
-            console.log(`[GameServer] ✓ Scene marked as completed: ${sceneIdentifier}`)
+            console.log(`[GameServer] ✓ Scenario marked as completed: ${session.scenarioId}`)
           }
         }
       } else if (!isFirstCompletion) {
-        console.log(`[GameServer] ⏭️ Repeat play - Scene already completed: ${sceneIdentifier}, no score awarded`)
+        console.log(`[GameServer] ⏭️ Repeat play - Scenario already completed: ${session.scenarioId}, no score awarded`)
       }
-    } catch (sceneError) {
-      console.error('[GameServer] Error marking scene as completed:', sceneError)
+    } catch (scenarioError) {
+      console.error('[GameServer] Error marking scenario as completed:', scenarioError)
     }
 
     // ✅ Award badge ONLY on first completion with score
@@ -378,12 +368,15 @@ export const getScenario = async (req, res) => {
   try {
     const { scenarioId } = req.params
     
+    // Get actual scenario data from scenarioService
+    const scenario = getScenarioById(scenarioId)
+    
+    if (!scenario) {
+      return res.status(404).json({ error: `Scenario not found: ${scenarioId}` })
+    }
+    
     res.json({
-      scenario: {
-        id: scenarioId,
-        title: scenarioId === '1' ? 'Phishing Email Detection' : 'WiFi Security',
-        description: 'Complete the scenario'
-      }
+      scenario: scenario
     })
   } catch (error) {
     console.error('[GameServer] Error getting scenario:', error)
