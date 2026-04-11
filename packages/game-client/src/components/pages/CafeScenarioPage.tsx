@@ -107,8 +107,6 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
   const [feedbackQuestions, setFeedbackQuestions] = useState<any>(null)
   const [questionsLoading, setQuestionsLoading] = useState(false)
 
-  // ...existing code...
-
   // Backend completion error state
   const [completionError, setCompletionError] = useState<string | null>(null)
   const [completionSuccess, setCompletionSuccess] = useState(false)
@@ -331,13 +329,15 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
       return
     }
 
-    // ✅ NEW: Infer sceneId from mission result
-    const endingSceneId = result === 'success' ? 'good-ending' : 'bad-ending'
+    // ✅ NEW: Infer endingId from mission result (for score limiting)
+    // Mission 2 has 2 endings tracked in dashboard: evil_twin vs cafe_corner_safe
+    // Backend currently uses 'bonus'/'penalty' as ending identifiers.
+    const endingId = result === 'success' ? 'bonus' : 'penalty'
 
     try {
       console.log('[CafeScenario] Sending game finish to backend...', {
-        sessionId: missionSessionId,  // ✅ Use stored sessionId
-        sceneId: endingSceneId,       // ✅ NEW: Send sceneId
+        sessionId: missionSessionId,
+        endingId,
         scenarioId,
         score,
         result,
@@ -352,8 +352,8 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          sessionId: missionSessionId,  // ✅ Use stored sessionId
-          sceneId: endingSceneId,       // ✅ NEW: Send sceneId
+          sessionId: missionSessionId,
+          endingId,
         }),
       })
 

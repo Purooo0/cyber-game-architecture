@@ -47,6 +47,14 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   const [isPaused, setIsPaused] = useState(false)
   const [showQuitConfirm, setShowQuitConfirm] = useState(false)
   const [missionResult, setMissionResult] = useState<'success' | 'failed' | null>(null)
+  const [pendingMissionResult, setPendingMissionResult] = useState<'success' | 'failed' | null>(null)
+  const [missionSessionId, setMissionSessionId] = useState<string | null>(null)
+  const [endingId, setEndingId] = useState<string | null>(null) // ✅ NEW: ending identifier for score-limiting
+
+  // ✅ Feedback questions state (used by PhonePopup)
+  const [questionsLoading, setQuestionsLoading] = useState(false)
+  const [feedbackQuestions, setFeedbackQuestions] = useState<Record<string, any>>({})
+
   const [score, setScore] = useState(0)
   const [xp, setXp] = useState(0)
   const [baseUserScore, setBaseUserScore] = useState(0)
@@ -110,13 +118,6 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   // NEW: Track if showing good ending mentor (teacher phishing confirmation)
   const [showGoodEndingMentor, setShowGoodEndingMentor] = useState(false)
 
-  const [pendingMissionResult, setPendingMissionResult] = useState<'success' | 'failed' | null>(null)
-  const [missionSessionId, setMissionSessionId] = useState<string | null>(null)  // ✅ Store sessionId with mission result!
-  
-  // NEW: Feedback questions state
-  const [feedbackQuestions, setFeedbackQuestions] = useState<any>(null)
-  const [questionsLoading, setQuestionsLoading] = useState(false)
-  
   // NEW: Handle score update from async action before triggering mission result
   useEffect(() => {
     if (pendingMissionResult) {
@@ -362,14 +363,14 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   }
 
   // Utility function to complete scenario with backend
-  const completeScenarioWithBackend = async (sceneId?: string) => {
+  const completeScenarioWithBackend = async (endingIdToSend?: string) => {
     const token = getToken()
-    if (!token || !missionSessionId) {  // ✅ Use missionSessionId, not gameSessionId!
+    if (!token || !missionSessionId) {
       console.warn('[SimulationPage] Cannot complete scenario: missing token or missionSessionId')
       return
     }
 
-    console.log('[SimulationPage] Sending scenario completion for session:', missionSessionId, 'sceneId:', sceneId);  // ✅ Log correct sessionId and sceneId!
+    console.log('[SimulationPage] Sending scenario completion for session:', missionSessionId, 'endingId:', endingIdToSend)
 
     try {
       const response = await fetch(`${API_URL}/api/game/finish`, {
@@ -379,8 +380,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          sessionId: missionSessionId,  // ✅ Use stored sessionId!
-          sceneId: sceneId || 'unknown-ending'  // ✅ NEW: Send sceneId (inferred from mission result)
+          sessionId: missionSessionId,
+          endingId: endingIdToSend || 'unknown-ending'
         })
       })
 
@@ -758,6 +759,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         setScore(updatedScore)
         setSessionScoreEarned(updatedScore)  // ✅ Store for ending UI
         setMissionSessionId(gameSessionId)  // ✅ Store sessionId
+        setEndingId('teacher_phishing_confirmed')
         setMentorLineIdx(0)
         setShowGoodEndingMentor(true)  // 🔧 Show good ending mentor
         setShowMentor(true)
@@ -817,16 +819,13 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   // Handle mission completion - send score to backend and refresh user stats
   useEffect(() => {
     if (missionResult === 'success' || missionResult === 'failed') {
-      // ✅ CRITICAL: Set isFinishingGame IMMEDIATELY to block new session creation
       setIsFinishingGame(true)
-      
-      // After a short delay to let animations finish, complete scenario on backend
+
       const timer = setTimeout(async () => {
         const isSuccess = missionResult === 'success'
-        // ✅ NEW: Infer sceneId from mission result
-        const endingSceneId = isSuccess ? 'good-ending' : 'bad-ending'
-        console.log(`[Frontend] Completing scenario:`, { isSuccess, score, missionSessionId, endingSceneId })
-        const result = await completeScenarioWithBackend(endingSceneId)
+        const endingIdToSend = endingId || (isSuccess ? 'success' : 'failed')
+        console.log(`[Frontend] Completing scenario:`, { isSuccess, score, missionSessionId, endingId: endingIdToSend })
+        const result = await completeScenarioWithBackend(endingIdToSend)
         
         // Store updated user stats from backend response
         if (result?.data?.userStats) {
@@ -858,11 +857,11 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
             }
           }
         }
-        setIsFinishingGame(false)  // ✅ Mark as done
+        setIsFinishingGame(false)
       }, 1500)
       return () => clearTimeout(timer)
     }
-  }, [missionResult, missionSessionId])
+  }, [missionResult, missionSessionId, endingId])
 
   const handleComplete = async () => {
     try {
@@ -1045,6 +1044,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
                       
                       // ✅ CRITICAL: Store sessionId for finishGame later
                       setMissionSessionId(gameSessionId)
+                      setEndingId(actionType) // ✅ NEW: store endingId from phone popup
                       
                       // Log the success action to backend and get updated score
                       try {
@@ -1068,6 +1068,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
                       
                       // ✅ CRITICAL: Store sessionId for finishGame later
                       setMissionSessionId(gameSessionId)
+                      setEndingId(actionType) // ✅ NEW: store endingId from phone popup
                       
                       // Log the fail action to backend and get updated score (usually negative)
                       try {
@@ -1242,12 +1243,10 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
                 <div className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 border-primary" />
                 <div className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-primary" />
 
-                {/* Title header */}
-                <div className="bg-secondary/10 border-b-2 border-secondary/30 px-6 pt-5 pb-4">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-secondary/20 border-2 border-secondary flex items-center justify-center overflow-hidden">
-                      <Target className="w-5 h-5 text-secondary" />
-                    </div>
+                {/* Scenario description header */}
+                <div className="px-6 pt-6 pb-4 bg-background/80 backdrop-blur-sm border-b border-primary/30">
+                  <div className="flex items-center gap-3">
+                    <Target className="w-5 h-5 text-secondary" />
                     <div>
                       <p className="font-pixel text-[10px] text-secondary">MISI 01 - DETEKSI PHISHING</p>
                       <Badge className="bg-accent/20 text-accent border border-accent/40 font-pixel text-[10px] mt-1">
@@ -1599,7 +1598,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         </div>
       )}
     </div>
-  )
+   )
 }
 
 export default SimulationPage

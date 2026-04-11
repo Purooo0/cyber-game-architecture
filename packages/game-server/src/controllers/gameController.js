@@ -96,8 +96,8 @@ export const logGameAction = async (req, res) => {
  */
 export const finishGame = async (req, res) => {
   try {
-    const { sessionId, sceneId } = req.body
-    
+    const { sessionId, endingId } = req.body
+
     if (!sessionId) {
       return res.status(400).json({ error: 'Missing sessionId' })
     }
@@ -107,91 +107,84 @@ export const finishGame = async (req, res) => {
       return res.status(404).json({ error: 'Session not found' })
     }
 
-    console.log(`[GameServer] DEBUG finishGame - Retrieved session: sessionId=${sessionId}, scenarioId=${session.scenarioId}, sceneId=${sceneId}, score=${session.score}`)
-
-    session.completedAt = new Date()
-    
-    // ✅ NEW: Track sceneId in session if provided
-    if (sceneId) {
-      session.sceneId = sceneId
-      console.log(`[GameServer] Scene tracking: sceneId=${sceneId}`)
+    // ✅ Persist endingId on session for debugging/analysis (optional)
+    if (endingId) {
+      session.sceneId = endingId // re-use existing field to avoid schema migration
     }
 
+    session.completedAt = new Date()
     await session.save()
 
-    // ✅ FIX: Use session.score that was accumulated from logGameAction
-    let sessionScore = session.score || 0
-    console.log(`[GameServer] Game finishing - Session: ${sessionId}, Raw Score: ${sessionScore}, SceneId: ${sceneId}`)
+    const sessionScore = session.score || 0
 
-    // 🔐 NEW: Check if SCENE already completed to limit scoring
-    // Player can play multiple times but only gets score on FIRST scene completion
-    // EXP is awarded every time
     const userId = session.userId
-    let isFirstSceneCompletion = false
+    let isFirstEndingCompletion = false
     let scoreToAward = 0
-    let xpToAward = 0
+
+    // ✅ XP behavior stays as-is: XP is always awarded based on sessionScore
+    const xpToAward = Math.round(sessionScore / 10)
 
     try {
       const userRef = db.ref(`users/${userId}`)
-      const snapshot = await userRef.once("value")
+      const snapshot = await userRef.once('value')
       const user = snapshot.val()
 
       if (user) {
-        // ✅ NEW: Check scene completion tracking per scenario
-        const userCompletedScenes = user.completedScenes || {}
-        const scenarioCompletedScenes = userCompletedScenes[session.scenarioId] || []
-        
-        // Check if this scene was already completed
-        isFirstSceneCompletion = sceneId ? !scenarioCompletedScenes.includes(sceneId) : true
-        
-        // Only award SCORE on first scene completion
-        // Award EXP every time (repeat plays give exp)
-        scoreToAward = isFirstSceneCompletion ? sessionScore : 0
-        xpToAward = Math.round(sessionScore / 10)  // EXP awarded regardless (based on session score)
-        
-        console.log(`[GameServer] 📊 Scene-Level Scoring Check:`)
-        console.log(`   Scenario: ${session.scenarioId}`)
-        console.log(`   Scene: ${sceneId || 'unknown'}`)
-        console.log(`   Completed Scenes in this scenario: ${scenarioCompletedScenes.join(', ') || 'none'}`)
-        console.log(`   First Scene Completion: ${isFirstSceneCompletion}`)
-        console.log(`   Score To Award: ${scoreToAward} (${isFirstSceneCompletion ? 'NEW scene' : 'REPEAT scene'})`)
-        console.log(`   XP To Award: ${xpToAward} (ALWAYS awarded)`)
+        const completedEndings = user.completedEndings || {}
+        const completedForScenario = completedEndings[session.scenarioId] || []
+
+        isFirstEndingCompletion = endingId ? !completedForScenario.includes(endingId) : true
+        scoreToAward = isFirstEndingCompletion ? sessionScore : 0
+
+        console.log('[GameServer] 📊 Ending-Level Scoring Check:', {
+          scenarioId: session.scenarioId,
+          endingId: endingId || 'unknown-ending',
+          completedEndings: completedForScenario,
+          isFirstEndingCompletion,
+          scoreToAward,
+          xpToAward,
+          sessionScore,
+        })
+
+        // ✅ Persist completion ONLY when first time and we have endingId
+        if (isFirstEndingCompletion && endingId) {
+          completedForScenario.push(endingId)
+          completedEndings[session.scenarioId] = completedForScenario
+          await userRef.update({ completedEndings })
+        }
+      } else {
+        // If user not found, default to awarding score
+        isFirstEndingCompletion = true
+        scoreToAward = sessionScore
       }
     } catch (fbError) {
-      console.error('[GameServer] Firebase check error:', fbError)
-      // On error, assume first completion to be safe
+      console.error('[GameServer] Firebase check/update error:', fbError)
+      isFirstEndingCompletion = true
       scoreToAward = sessionScore
-      xpToAward = Math.round(sessionScore / 10)
-      isFirstSceneCompletion = true
     }
 
-    // Update user score using Firebase
+    // Update user score + XP using Firebase
     let updatedUserStats = null
     let awardedBadge = null
 
     try {
       const userRef = db.ref(`users/${userId}`)
-      const snapshot = await userRef.once("value")
+      const snapshot = await userRef.once('value')
       const user = snapshot.val()
 
       if (user) {
-        // ✅ Use scoreToAward (which may be 0 if not first scene completion)
-        // ✅ NEW: Always award xpToAward (even on repeat scenes)
         const newTotalScore = (user.totalScore || 0) + scoreToAward
         let newCurrentXP = (user.currentXP || 0) + xpToAward
         let newLevel = user.level || 1
         let newXpToNextLevel = user.xpToNextLevel || 1000
 
-        // Handle level up
         while (newCurrentXP >= newXpToNextLevel) {
           newCurrentXP -= newXpToNextLevel
           newLevel += 1
           newXpToNextLevel = Math.ceil(1000 * (1.1 ** (newLevel - 1)))
         }
 
-        if (newCurrentXP < 0) {
-          newCurrentXP = 0
-        }
+        if (newCurrentXP < 0) newCurrentXP = 0
 
         await userRef.update({
           totalScore: newTotalScore,
@@ -206,130 +199,52 @@ export const finishGame = async (req, res) => {
           level: newLevel,
           xpToNextLevel: newXpToNextLevel,
         }
-
-        console.log(`[GameServer] ✓ User score updated:`, updatedUserStats)
       }
     } catch (fbError) {
       console.error('[GameServer] Firebase update error:', fbError)
     }
 
-    // ✅ NEW: Mark scene as completed ONLY on first scene completion with score
-    try {
-      if (isFirstSceneCompletion && scoreToAward > 0 && sceneId) {
-        const userRef = db.ref(`users/${session.userId}`)
-        const snapshot = await userRef.once("value")
-        const user = snapshot.val()
-
-        if (user) {
-          const userCompletedScenes = user.completedScenes || {}
-          const scenarioCompletedScenes = userCompletedScenes[session.scenarioId] || []
-          
-          // Check if scene not already in list
-          if (!scenarioCompletedScenes.includes(sceneId)) {
-            scenarioCompletedScenes.push(sceneId)
-            userCompletedScenes[session.scenarioId] = scenarioCompletedScenes
-            
-            await userRef.update({
-              completedScenes: userCompletedScenes
-            })
-            
-            console.log(`[GameServer] ✓ Scene marked as completed: Scenario=${session.scenarioId}, Scene=${sceneId}`)
-            console.log(`[GameServer]   Total completed scenes in scenario: ${scenarioCompletedScenes.length}`)
-          }
-        }
-      } else if (!isFirstSceneCompletion && sceneId) {
-        console.log(`[GameServer] ⏭️ Repeat scene - Already completed: Scenario=${session.scenarioId}, Scene=${sceneId}, no score awarded (EXP only)`)
-      } else if (!sceneId) {
-        console.log(`[GameServer] ⚠️ Warning: sceneId not provided, cannot track scene completion`)
-      }
-    } catch (sceneError) {
-      console.error('[GameServer] Error marking scene as completed:', sceneError)
-    }
-
-    // ✅ NEW: Award badge ONLY on first scene completion with score
+    // ✅ Badge awarding: keep existing behavior, but only award when score awarded (>0)
     try {
       const scenario = getScenarioById(session.scenarioId)
-      console.log(`[GameServer] Badge check - Scenario ID: ${session.scenarioId}, First Scene Completion: ${isFirstSceneCompletion}, Has badge definition: ${!!scenario?.badge}`)
-      
-      if (scenario && scenario.badge && isFirstSceneCompletion && scoreToAward > 0) {
-        console.log(`[GameServer] ✓ Awarding badge: ${scenario.badge.name} (ID: ${scenario.badge.id})`)
-        
-        // Add badge to user's badges array in Firebase
+      if (scenario && scenario.badge && scoreToAward > 0) {
         const userRef = db.ref(`users/${session.userId}`)
-        const snapshot = await userRef.once("value")
+        const snapshot = await userRef.once('value')
         const user = snapshot.val()
-        
-        console.log(`[GameServer] User data fetched for badge save:`, { userId: session.userId, hasUser: !!user })
-        
+
         if (user) {
           const existingBadges = user.badges || []
-          console.log(`[GameServer] Existing badges count: ${existingBadges.length}`, existingBadges)
-          
-          // Check if badge already earned
           const badgeExists = existingBadges.some(b => b.id === scenario.badge.id)
-          console.log(`[GameServer] Badge already exists: ${badgeExists}`)
-          
+
           if (!badgeExists) {
-            const badgeWithTimestamp = {
-              ...scenario.badge,
-              earnedAt: new Date().toISOString()
-            }
+            const badgeWithTimestamp = { ...scenario.badge, earnedAt: new Date().toISOString() }
             existingBadges.push(badgeWithTimestamp)
             awardedBadge = badgeWithTimestamp
-            
-            console.log(`[GameServer] Saving badge to Firebase:`, badgeWithTimestamp)
-            
-            await userRef.update({
-              badges: existingBadges
-            })
-            
-            console.log(`[GameServer] ✓✓✓ Badge awarded and saved: ${scenario.badge.name}`)
-          } else {
-            console.log(`[GameServer] ⚠️ Badge already earned, skipping duplicate`)
+            await userRef.update({ badges: existingBadges })
           }
-        } else {
-          console.log(`[GameServer] ⚠️ User not found in Firebase for badge save`)
         }
-      } else {
-        console.log(`[GameServer] Badge not awarded - First Scene Completion: ${isFirstSceneCompletion}, Score: ${scoreToAward}, Has badge def: ${!!scenario?.badge}`)
       }
     } catch (badgeError) {
       console.error('[GameServer] Error awarding badge:', badgeError)
-      // Don't fail the mission if badge award fails
     }
-
-    // Fallback to in-memory User model if Firebase fails
-    let user = await User.findById(session.userId)
-    if (user && !updatedUserStats) {
-      user.totalScore = (user.totalScore || 0) + scoreToAward
-      user.xp = (user.xp || 0) + xpToAward
-      await user.save()
-      updatedUserStats = {
-        totalScore: user.totalScore,
-        currentXP: user.xp,
-        level: user.level || 1
-      }
-    }
-
-    console.log(`[GameServer] Game finished - User: ${session.userId}, SessionScore: ${sessionScore}, ScoreAwarded: ${scoreToAward}, XPAwarded: ${xpToAward}, UpdatedStats:`, updatedUserStats)
 
     res.json({
       success: true,
       session: {
         id: session._id,
-        score: sessionScore,                    // ✅ Show raw score earned in session
-        scoreAwarded: scoreToAward,             // ✅ Show actual score added to total (0 if repeat scene)
-        xp: xpToAward,                          // ✅ Show XP awarded (always awarded)
-        isFirstSceneCompletion: isFirstSceneCompletion,  // ✅ Tell client if this was first scene completion
-        sceneId: sceneId,                       // ✅ Echo back sceneId for tracking
-        message: isFirstSceneCompletion 
-          ? `✅ First scene completion! +${scoreToAward} score, +${xpToAward} XP`
-          : `⏭️ Repeat scene. +${xpToAward} XP only (no score)`
+        score: sessionScore,
+        scoreAwarded: scoreToAward,
+        xp: xpToAward,
+        endingId: endingId || null,
+        isFirstEndingCompletion,
+        message: isFirstEndingCompletion
+          ? `✅ First ending completion! +${scoreToAward} score, +${xpToAward} XP`
+          : `⏭️ Ending already completed. +${xpToAward} XP only (no score)`,
       },
       data: {
         userStats: updatedUserStats,
-        badge: awardedBadge
-      }
+        badge: awardedBadge,
+      },
     })
   } catch (error) {
     console.error('[GameServer] Error finishing game:', error)
