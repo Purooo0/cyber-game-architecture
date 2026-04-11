@@ -606,3 +606,17 @@ export const getUserEndingTracking = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch user ending tracking' })
   }
 }
+
+// ✅ Keep default export for compatibility with routes importing gameController as default
+export default {
+  startGame,
+  logGameAction,
+  finishGame,
+  logFeedbackAnswer,
+  getScenario,
+  getAllFeedbackAnswers,
+  getFeedbackByScenario,
+  getFeedbackByUser,
+  getFeedbackQuestions,
+  getUserEndingTracking,
+}
