@@ -533,77 +533,85 @@ export const getFeedbackQuestions = async (req, res) => {
  * Analyzes actionTypes in feedbackAnswers to determine which endings player has completed
  */
 export const getUserEndingTracking = async (req, res) => {
+  const safeEmpty = {
+    'phishing-scenario': [],
+    'cafe-scenario': [],
+  }
+
   try {
     const userId = req.userId
-
     console.log('[GameServer] Fetching ending tracking for user:', userId)
 
-    // Define ending actionTypes per scenario
+    // Define known endings per scenario
     const endingTypesMap = {
       'phishing-scenario': ['reported_phishing', 'deleted_phishing', 'teacher_phishing_confirmed', 'clicked_malicious_link'],
       'cafe-scenario': ['bonus', 'penalty'],
     }
 
-    // ✅ 1) Primary source of truth: Firebase users/{userId}/completedEndings
-    // This is written by finishGame and is independent of feedback logging.
-    let completedEndingsFromFirebase = null
+    // 1) Primary: Firebase completedEndings
     try {
       const userRef = db.ref(`users/${userId}`)
       const snapshot = await userRef.once('value')
-      const user = snapshot.val()
-      completedEndingsFromFirebase = user?.completedEndings || null
+      const user = snapshot && typeof snapshot.val === 'function' ? snapshot.val() : null
+
+      const completedEndings = user && typeof user === 'object' ? user.completedEndings : null
+
+      if (completedEndings && typeof completedEndings === 'object') {
+        const result = { ...safeEmpty }
+        for (const scenarioId of Object.keys(result)) {
+          const allowed = endingTypesMap[scenarioId] || []
+          const list = Array.isArray(completedEndings[scenarioId]) ? completedEndings[scenarioId] : []
+          result[scenarioId] = Array.from(new Set(list.filter(e => allowed.includes(e))))
+        }
+
+        return res.json({ success: true, endingTracking: result })
+      }
     } catch (fbError) {
-      console.error('[GameServer] Error reading completedEndings from Firebase:', fbError)
+      // Firebase misconfig shouldn't bring down the endpoint
+      console.error('[GameServer] completedEndings Firebase read failed:', fbError)
     }
 
-    const result = {
-      'phishing-scenario': [],
-      'cafe-scenario': [],
-    }
-
-    if (completedEndingsFromFirebase) {
-      for (const scenarioId of Object.keys(result)) {
-        const allowedEndings = endingTypesMap[scenarioId] || []
-        const list = Array.isArray(completedEndingsFromFirebase[scenarioId])
-          ? completedEndingsFromFirebase[scenarioId]
-          : []
-
-        // Filter to known endings and dedupe
-        result[scenarioId] = Array.from(new Set(list.filter(e => allowedEndings.includes(e))))
+    // 2) Fallback: analyze feedbackAnswers in sessions
+    try {
+      const sessions = await GameSession.findByUserId(userId)
+      if (!sessions || sessions.length === 0) {
+        return res.json({ success: true, endingTracking: safeEmpty })
       }
 
-      console.log('[GameServer] User ending tracking (Firebase completedEndings):', result)
-      return res.json({
-        success: true,
-        endingTracking: result,
-      })
+      const sets = {
+        'phishing-scenario': new Set(),
+        'cafe-scenario': new Set(),
+      }
+
+      for (const session of sessions) {
+        const scenarioId = session?.scenarioId
+        if (!scenarioId || !sets[scenarioId]) continue
+
+        const allowed = endingTypesMap[scenarioId] || []
+        const answers = session?.feedbackAnswers
+        if (!Array.isArray(answers)) continue
+
+        for (const f of answers) {
+          const actionType = f?.actionType
+          if (actionType && allowed.includes(actionType)) {
+            sets[scenarioId].add(actionType)
+          }
+        }
+      }
+
+      const result = {
+        'phishing-scenario': Array.from(sets['phishing-scenario']),
+        'cafe-scenario': Array.from(sets['cafe-scenario']),
+      }
+
+      return res.json({ success: true, endingTracking: result })
+    } catch (fallbackErr) {
+      console.error('[GameServer] endingTracking fallback failed:', fallbackErr)
+      return res.json({ success: true, endingTracking: safeEmpty })
     }
-
-    // ✅ 2) Secondary source: Analyze feedbackAnswers in GameSession
-    const sessions = await GameSession.find({ userId })
-    
-    for (const session of sessions) {
-      const scenarioId = session.scenarioId
-      const allowedEndings = endingTypesMap[scenarioId] || []
-
-      // Analyze feedback answers for ending action types
-      const endingActions = (session.feedbackAnswers || []).filter(fa => 
-        fa.actionType && allowedEndings.includes(fa.actionType)
-      ).map(fa => fa.actionType)
-
-      // Deduplicate and add to result
-      result[scenarioId] = Array.from(new Set([...result[scenarioId], ...endingActions]))
-    }
-
-    console.log('[GameServer] User ending tracking (feedbackAnswers analysis):', result)
-
-    res.json({
-      success: true,
-      endingTracking: result,
-    })
   } catch (error) {
-    console.error('[GameServer] Error fetching user ending tracking:', error)
-    res.status(500).json({ error: 'Failed to fetch user ending tracking' })
+    console.error('[GameServer] Error fetching ending tracking (safe):', error)
+    return res.json({ success: true, endingTracking: safeEmpty })
   }
 }
 
