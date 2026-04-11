@@ -344,6 +344,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
                   const totalEndings = missionsEndingMap[mission.id] || 0
                   const completedEndings = (endingTracking[mission.id] || []).length
                   const allEndingsComplete = totalEndings > 0 && completedEndings === totalEndings
+                  const hasAnyEnding = completedEndings > 0
                   
                   return (
                     <Card
@@ -397,7 +398,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
                               ? 'bg-foreground/10 text-foreground/40 cursor-not-allowed'
                               : allEndingsComplete
                               ? 'bg-yellow-500/20 text-yellow-500 border-2 border-yellow-500 hover:bg-yellow-500 hover:text-yellow-950'
-                              : mission.completed
+                              : (mission.completed || hasAnyEnding)
                               ? 'bg-primary/20 text-primary border-2 border-primary hover:bg-primary hover:text-primary-foreground'
                               : 'bg-secondary hover:bg-secondary/90 text-secondary-foreground'
                           }`}
@@ -414,7 +415,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
                               <RotateCw className="w-4 h-4 mr-2" />
                               RETRY
                             </>
-                          ) : mission.completed ? (
+                          ) : (mission.completed || hasAnyEnding) ? (
                             <>
                               <CheckCircle2 className="w-4 h-4 mr-2" />
                               REPLAY

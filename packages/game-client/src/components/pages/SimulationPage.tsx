@@ -44,6 +44,11 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   scenarioId = '1',
   scenarioTitle = 'Pengumuman Darurat dari Sekolah'
 }) => {
+  // ✅ Normalize legacy scenario ids to backend ids
+  const normalizedScenarioId = scenarioId === '1' ? 'phishing-scenario'
+    : scenarioId === 'emergency-school' ? 'phishing-scenario'
+    : scenarioId
+
   const [isPaused, setIsPaused] = useState(false)
   const [showQuitConfirm, setShowQuitConfirm] = useState(false)
   const [missionResult, setMissionResult] = useState<'success' | 'failed' | null>(null)
@@ -152,7 +157,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ scenarioId })
+            body: JSON.stringify({ scenarioId: normalizedScenarioId })
           })
 
           if (startResponse.ok) {
@@ -175,7 +180,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
       createNewSession()
     }
-  }, [missionResult, gameSessionId, score, scenarioId, baseUserScore, isFinishingGame, pendingMissionResult])
+  }, [missionResult, gameSessionId, score, normalizedScenarioId, baseUserScore, isFinishingGame, pendingMissionResult])
 
   // NEW: Track canvas position for E indicator positioning
   const [canvasPosition, setCanvasPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -405,7 +410,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   useEffect(() => {
     const fetchScenarioData = async () => {
       const token = getToken()
-      if (!token || !scenarioId) {
+      if (!token || !normalizedScenarioId) {
         setLoading(false)
         return
       }
@@ -419,7 +424,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ scenarioId })
+            body: JSON.stringify({ scenarioId: normalizedScenarioId })
           })
 
           if (startResponse.ok) {
@@ -447,8 +452,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
         // Try both proxy path and API_URL
         const apiPaths = [
-          `/api/game/${scenarioId}`,
-          `${API_URL}/api/game/${scenarioId}`
+          `/api/game/${normalizedScenarioId}`,
+          `${API_URL}/api/game/${normalizedScenarioId}`
         ]
 
         let response = null
@@ -522,7 +527,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     }
 
     fetchScenarioData()
-  }, [scenarioId])
+  }, [normalizedScenarioId])
 
   // NEW: Boot text typewriter effect
   useEffect(() => {
@@ -669,7 +674,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ scenarioId })
+          body: JSON.stringify({ scenarioId: normalizedScenarioId })
         })
 
         if (startResponse.ok) {
