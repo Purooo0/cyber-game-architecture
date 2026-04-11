@@ -15,6 +15,11 @@ app.get("/", (req, res) => {
   res.send("Cyber Edu Game Backend is running 🚀");
 });
 
+// ✅ Health check for deployment verification
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true })
+})
+
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/game", gameRoutes);

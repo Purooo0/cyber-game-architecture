@@ -1,7 +1,10 @@
-// Prefer explicit VITE_API_URL when provided.
-// If not set:
-// - dev: talk to local server
-// - prod (Vercel/static): use same-origin (works with rewrites/proxy if configured)
-export const API_URL = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL
-  : (import.meta.env.DEV ? 'http://localhost:3000' : '')
+// Centralized API base URL.
+// - In production, VITE_API_URL MUST be set to the server deployment URL.
+// - In development, it can be omitted and we fall back to localhost.
+const raw = import.meta.env.VITE_API_URL
+
+export const API_URL = raw && raw.trim().length > 0
+  ? raw.replace(/\/+$/, '')
+  : (import.meta.env.PROD
+      ? '' // same-origin (only works if you proxy /api from the same host)
+      : 'http://localhost:3000')

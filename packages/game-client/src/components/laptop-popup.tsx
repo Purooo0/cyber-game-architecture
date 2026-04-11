@@ -1332,7 +1332,7 @@ const WiFiManagerDialog: React.FC<WiFiManagerDialogProps> = ({ connectedTo, onCl
               {/* Speaker name header */}
               <div className="flex items-center gap-2">
                 <span className="font-pixel text-xs text-secondary">PASMAN</span>
-                <div className="w-2 h-2 bg-secondary rounded-full" />
+                <div className="w-2.5 h-2.5 rounded-full bg-foreground/20" />
               </div>
               
               {/* Dialog text */}
@@ -1418,8 +1418,8 @@ const DesktopView: React.FC<DesktopViewProps> = ({ connectedTo, onOpenApp, onMen
         className="absolute inset-0"
         style={{
           backgroundImage: `
-            linear-gradient(0deg, transparent 24%, rgba(${Math.round(41 * 255 / 100)} ${Math.round(121 * 255 / 100)} ${Math.round(255 * 255 / 100)}, 0.05) 25%, rgba(${Math.round(41 * 255 / 100)} ${Math.round(121 * 255 / 100)} ${Math.round(255 * 255 / 100)}, 0.05) 26%, transparent 27%, transparent 74%, rgba(${Math.round(41 * 255 / 100)} ${Math.round(121 * 255 / 100)} ${Math.round(255 * 255 / 100)}, 0.05) 75%, rgba(${Math.round(41 * 255 / 100)} ${Math.round(121 * 255 / 100)} ${Math.round(255 * 255 / 100)}, 0.05) 76%, transparent 77%, transparent 100%),
-            linear-gradient(90deg, transparent 24%, rgba(${Math.round(41 * 255 / 100)} ${Math.round(121 * 255 / 100)} ${Math.round(255 * 255 / 100)}, 0.05) 25%, rgba(${Math.round(41 * 255 / 100)} ${Math.round(121 * 255 / 100)} ${Math.round(255 * 255 / 100)}, 0.05) 26%, transparent 27%, transparent 74%, rgba(${Math.round(41 * 255 / 100)} ${Math.round(121 * 255 / 100)} ${Math.round(255 * 255 / 100)}, 0.05) 75%, rgba(${Math.round(41 * 255 / 100)} ${Math.round(121 * 255 / 100)} ${Math.round(255 * 255 / 100)}, 0.05) 76%, transparent 77%, transparent 100%)
+            linear-gradient(0deg, transparent 24%, rgba(${Math.round(41 * 255 / 100)}, ${Math.round(121 * 255 / 100)}, ${Math.round(255 * 255 / 100)}, 0.05) 25%, rgba(${Math.round(41 * 255 / 100)}, ${Math.round(121 * 255 / 100)}, ${Math.round(255 * 255 / 100)}, 0.05) 26%, transparent 27%, transparent 74%, rgba(${Math.round(41 * 255 / 100)}, ${Math.round(121 * 255 / 100)}, ${Math.round(255 * 255 / 100)}, 0.05) 75%, rgba(${Math.round(41 * 255 / 100)}, ${Math.round(121 * 255 / 100)}, ${Math.round(255 * 255 / 100)}, 0.05) 76%, transparent 77%, transparent 100%),
+            linear-gradient(90deg, transparent 24%, rgba(${Math.round(41 * 255 / 100)}, ${Math.round(121 * 255 / 100)}, ${Math.round(255 * 255 / 100)}, 0.05) 25%, rgba(${Math.round(41 * 255 / 100)}, ${Math.round(121 * 255 / 100)}, ${Math.round(255 * 255 / 100)}, 0.05) 26%, transparent 27%, transparent 74%, rgba(${Math.round(41 * 255 / 100)}, ${Math.round(121 * 255 / 100)}, ${Math.round(255 * 255 / 100)}, 0.05) 75%, rgba(${Math.round(41 * 255 / 100)}, ${Math.round(121 * 255 / 100)}, ${Math.round(255 * 255 / 100)}, 0.05) 76%, transparent 77%, transparent 100%)
           `,
           backgroundSize: '32px 32px',
         }}
