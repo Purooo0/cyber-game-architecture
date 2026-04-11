@@ -62,6 +62,9 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
   const [score, setScore] = useState(0)
   const [xp, setXp] = useState(0)
   const [sessionScoreEarned, setSessionScoreEarned] = useState(0)  // ✅ Track earned score for ending UI
+  // ✅ NEW: values returned from finishGame (score limited per-ending; XP always awarded)
+  const [endingScoreAwarded, setEndingScoreAwarded] = useState<number | null>(null)
+  const [endingXpAwarded, setEndingXpAwarded] = useState<number | null>(null)
   const [userStats, setUserStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [scenarioData, setScenarioData] = useState<any>(null)
@@ -377,6 +380,12 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
 
       const data = await response.json()
       console.log('[CafeScenario] Game finished successfully:', data)
+
+      // ✅ Capture backend-awarded values (score can be 0 on replay; XP always awarded)
+      if (data?.session) {
+        if (typeof data.session.scoreAwarded === 'number') setEndingScoreAwarded(data.session.scoreAwarded)
+        if (typeof data.session.xp === 'number') setEndingXpAwarded(data.session.xp)
+      }
       
       // Update base user score from finishGame response
       if (data?.data?.userStats) {
@@ -663,6 +672,9 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
     setLoading(true)
     setMissionResult(null)
     setSessionScoreEarned(0)  // ✅ Reset earned score
+    // ✅ reset ending award values
+    setEndingScoreAwarded(null)
+    setEndingXpAwarded(null)
     setIsPaused(false)
     setShowQuitConfirm(false)
     setShowLaptopPopup(false)
@@ -1062,32 +1074,43 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
               </div>
 
               <div className="grid grid-cols-3 gap-4 py-4">
-                <div className="space-y-2">
-                  <Star className="w-6 h-6 text-yellow-400 mx-auto" />
-                  <p className="font-pixel text-2xl text-foreground">+{sessionScoreEarned}</p>
-                  <p className="text-xs text-foreground/60">Poin Diperoleh</p>
-                </div>
+                {/* Score: show only when backend actually awards score (replay => 0) */}
+                {(endingScoreAwarded ?? sessionScoreEarned) !== 0 && (
+                  <div className="space-y-2">
+                    <Star className="w-6 h-6 text-yellow-400 mx-auto" />
+                    <p className="font-pixel text-2xl text-foreground">+{endingScoreAwarded ?? sessionScoreEarned}</p>
+                    <p className="text-xs text-foreground/60">Poin Diperoleh</p>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Zap className="w-6 h-6 text-secondary mx-auto" />
-                  <p className="font-pixel text-2xl text-secondary">+{Math.round(sessionScoreEarned / 10)}</p>
+                  <p className="font-pixel text-2xl text-secondary">+{endingXpAwarded ?? Math.round(sessionScoreEarned / 10)}</p>
                   <p className="text-xs text-foreground/60">EXP Diperoleh</p>
                 </div>
-                <div className="space-y-2">
-                  <Award className="w-6 h-6 text-accent mx-auto" />
-                  <p className="font-pixel text-2xl text-accent">+1</p>
-                  <p className="text-xs text-foreground/60">Badge Terbuka</p>
-                </div>
+
+                {/* Badge: only meaningful on first completion, but keep UI simple: show +1 only when score awarded */}
+                {((endingScoreAwarded ?? sessionScoreEarned) !== 0) && (
+                  <div className="space-y-2">
+                    <Award className="w-6 h-6 text-accent mx-auto" />
+                    <p className="font-pixel text-2xl text-accent">+1</p>
+                    <p className="text-xs text-foreground/60">Badge Terbuka</p>
+                  </div>
+                )}
               </div>
 
-              <Card className="bg-accent/10 border-2 border-accent p-4">
-                <div className="flex items-center gap-3">
-                  <Award className="w-8 h-8 text-accent flex-shrink-0" />
-                  <div className="text-left">
-                    <p className="font-pixel text-xs text-accent mb-1">BADGE BARU TERBUKA!</p>
-                    <p className="text-sm text-foreground">Ahli Keamanan WiFi</p>
+              {/* Show badge card only when actually awarded (score awarded) */}
+              {((endingScoreAwarded ?? sessionScoreEarned) !== 0) && (
+                <Card className="bg-accent/10 border-2 border-accent p-4">
+                  <div className="flex items-center gap-3">
+                    <Award className="w-8 h-8 text-accent flex-shrink-0" />
+                    <div className="text-left">
+                      <p className="font-pixel text-xs text-accent mb-1">BADGE BARU TERBUKA!</p>
+                      <p className="text-sm text-foreground">Ahli Keamanan WiFi</p>
+                    </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
+              )}
 
               {completionError && (
                 <Card className="bg-destructive/10 border-2 border-destructive p-4">
@@ -1150,15 +1173,18 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
 
             {/* Score Impact */}
             <div className="grid grid-cols-2 gap-4 py-2">
-              <div className="space-y-2">
-                <AlertTriangle className="w-6 h-6 text-destructive mx-auto" />
-                <p className="font-pixel text-2xl text-destructive">{sessionScoreEarned}</p>
-                <p className="text-xs text-foreground/60">Penalty Diterima</p>
-              </div>
+              {/* Penalty: only show if backend actually awards (first time) */}
+              {(endingScoreAwarded ?? sessionScoreEarned) !== 0 && (
+                <div className="space-y-2">
+                  <AlertTriangle className="w-6 h-6 text-destructive mx-auto" />
+                  <p className="font-pixel text-2xl text-destructive">{endingScoreAwarded ?? sessionScoreEarned}</p>
+                  <p className="text-xs text-foreground/60">Penalty Diterima</p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Zap className="w-6 h-6 text-secondary mx-auto" />
-                <p className="font-pixel text-2xl text-secondary">{Math.round(sessionScoreEarned / 10)}</p>
-                <p className="text-xs text-foreground/60">EXP Hilang</p>
+                <p className="font-pixel text-2xl text-secondary">+{endingXpAwarded ?? Math.round(sessionScoreEarned / 10)}</p>
+                <p className="text-xs text-foreground/60">EXP Diperoleh</p>
               </div>
             </div>
 
