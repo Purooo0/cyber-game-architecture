@@ -434,6 +434,8 @@ export const useUserEndingTracking = (token?: string | null) => {
     const fetchEndingTracking = async () => {
       if (!token) {
         console.log('[useUserEndingTracking] No token provided, skipping fetch')
+        setEndingTracking({})
+        setError(null)
         setLoading(false)
         return
       }
@@ -459,7 +461,21 @@ export const useUserEndingTracking = (token?: string | null) => {
         }
 
         if (!response.ok) {
-          throw new Error(`Failed to fetch ending tracking: ${response.status}`)
+          // Don't throw: server might return HTML error pages that break JSON parsing in callers.
+          const body = await response.text().catch(() => '')
+          console.error('[useUserEndingTracking] Non-ok response body (first 200 chars):', body.substring(0, 200))
+          setEndingTracking({})
+          setError(`Failed to fetch ending tracking: ${response.status}`)
+          return
+        }
+
+        const contentType = response.headers.get('content-type') || ''
+        if (!contentType.includes('application/json')) {
+          const body = await response.text().catch(() => '')
+          console.error('[useUserEndingTracking] Unexpected content-type:', contentType, 'body (first 200):', body.substring(0, 200))
+          setEndingTracking({})
+          setError('Unexpected response format')
+          return
         }
 
         const data = await response.json()
