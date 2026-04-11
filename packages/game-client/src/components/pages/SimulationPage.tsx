@@ -100,6 +100,10 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   // NEW: Track session score earned for ending UI display (separate from current score state)
   const [sessionScoreEarned, setSessionScoreEarned] = useState(0)
 
+  // ✅ NEW: values returned by finishGame (used for ending UI display)
+  const [endingScoreAwarded, setEndingScoreAwarded] = useState(0)
+  const [endingXpAwarded, setEndingXpAwarded] = useState(0)
+
   // NEW: Next scene transition state
   const [showNextSceneHint, setShowNextSceneHint] = useState(false)
   const [nextSceneHintPos, setNextSceneHintPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -615,6 +619,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     setScore(0)
     setXp(0)
     setSessionScoreEarned(0)  // ✅ Reset earned score
+    setEndingScoreAwarded(0)
+    setEndingXpAwarded(0)
     setUserStats(null)
 
     // Reset intro state
@@ -826,7 +832,13 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         const endingIdToSend = endingId || (isSuccess ? 'success' : 'failed')
         console.log(`[Frontend] Completing scenario:`, { isSuccess, score, missionSessionId, endingId: endingIdToSend })
         const result = await completeScenarioWithBackend(endingIdToSend)
-        
+
+        // ✅ Capture finishGame awarded values for ending UI
+        const scoreAwarded = result?.session?.scoreAwarded
+        const xpAwarded = result?.session?.xp
+        if (typeof scoreAwarded === 'number') setEndingScoreAwarded(scoreAwarded)
+        if (typeof xpAwarded === 'number') setEndingXpAwarded(xpAwarded)
+
         // Store updated user stats from backend response
         if (result?.data?.userStats) {
           setUserStats(result.data.userStats)
@@ -1460,16 +1472,18 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
                 </p>
               </div>
 
-              {/* Stats Grid - 3 columns */}
-              <div className="grid grid-cols-3 gap-4 py-4">
-                <div className="space-y-2">
-                  <Star className="w-6 h-6 text-yellow-400 mx-auto" />
-                  <p className="font-pixel text-2xl text-foreground">+{sessionScoreEarned}</p>
-                  <p className="text-xs text-foreground/60">Score Earned</p>
-                </div>
+              {/* Stats Grid */}
+              <div className={`grid ${endingScoreAwarded > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-4 py-4`}>
+                {endingScoreAwarded > 0 && (
+                  <div className="space-y-2">
+                    <Star className="w-6 h-6 text-yellow-400 mx-auto" />
+                    <p className="font-pixel text-2xl text-foreground">+{endingScoreAwarded}</p>
+                    <p className="text-xs text-foreground/60">Score Earned</p>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Zap className="w-6 h-6 text-secondary mx-auto" />
-                  <p className="font-pixel text-2xl text-secondary">+{Math.round(sessionScoreEarned / 10)}</p>
+                  <p className="font-pixel text-2xl text-secondary">+{endingXpAwarded}</p>
                   <p className="text-xs text-foreground/60">XP Gained</p>
                 </div>
                 <div className="space-y-2">
@@ -1549,16 +1563,18 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
                 </p>
               </div>
 
-              {/* Score Display */}
-              <div className="grid grid-cols-2 gap-4 py-4 bg-destructive/5 rounded-lg p-4 border border-destructive/20">
-                <div className="space-y-2">
-                  <Star className="w-6 h-6 text-yellow-400 mx-auto" />
-                  <p className="font-pixel text-2xl text-foreground">{sessionScoreEarned}</p>
-                  <p className="text-xs text-foreground/60">Score Change</p>
-                </div>
+              {/* Score/XP Display */}
+              <div className={`grid ${endingScoreAwarded !== 0 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 py-4 bg-destructive/5 rounded-lg p-4 border border-destructive/20`}>
+                {endingScoreAwarded !== 0 && (
+                  <div className="space-y-2">
+                    <Star className="w-6 h-6 text-yellow-400 mx-auto" />
+                    <p className="font-pixel text-2xl text-foreground">{endingScoreAwarded}</p>
+                    <p className="text-xs text-foreground/60">Score Change</p>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Zap className="w-6 h-6 text-secondary mx-auto" />
-                  <p className="font-pixel text-2xl text-secondary">{Math.round(sessionScoreEarned / 10)}</p>
+                  <p className="font-pixel text-2xl text-secondary">{endingXpAwarded}</p>
                   <p className="text-xs text-foreground/60">XP Change</p>
                 </div>
               </div>
