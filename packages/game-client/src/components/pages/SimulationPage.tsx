@@ -28,7 +28,7 @@ import { MentorDialog } from '../mentor-dialog'
 import { PhonePopup } from '../phone-popup'
 import { NPCDialogPopup } from '../npc-dialog-popup'
 import { NPCDialogSystem, type DialogNode } from '../npc-dialog-system'
-import { API_URL } from '../../lib/api'
+import { API_URL, safeJson } from '../../lib/api'
 import type { TriggerBox, InteractiveObject } from '../../game/types'
 
 interface SimulationPageProps {
@@ -161,7 +161,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           })
 
           if (startResponse.ok) {
-            const sessionData = await startResponse.json()
+            const sessionData = await safeJson<any>(startResponse, 'POST /api/game/start')
             const newSessionId = sessionData.session?.id || sessionData.sessionId || sessionData.id
             if (newSessionId) {
               setGameSessionId(newSessionId)
@@ -489,7 +489,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           })
 
           if (startResponse.ok) {
-            const sessionData = await startResponse.json()
+            const sessionData = await safeJson<any>(startResponse, 'POST /api/game/start')
             console.log('[Backend] Session response:', sessionData)
             // Handle different response structures
             const sessionId = sessionData.session?.id || sessionData.sessionId || sessionData.id
@@ -536,7 +536,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         }
 
         if (response?.ok) {
-          const data = await response.json()
+          const data = await safeJson<any>(response, `GET /api/game/${normalizedScenarioId}`)
           setScenarioData(data.scenario || data)
           console.log('Scenario data loaded:', data.scenario?.title || data.title)
         } else {
@@ -550,7 +550,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
             headers: { Authorization: `Bearer ${token}` },
           })
           if (userResponse.ok) {
-            const userData = await userResponse.json()
+            const userData = await safeJson<any>(userResponse, 'GET /api/user/stats')
             console.log('[SimulationPage] User stats:', userData)
             setUserStats(userData)
             // Store base score and XP info so we can display total = base + session score
@@ -570,7 +570,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
             headers: { Authorization: `Bearer ${token}` }
           })
           if (questionsResponse.ok) {
-            const questionsData = await questionsResponse.json()
+            const questionsData = await safeJson<any>(questionsResponse, 'GET /api/game/questions')
             const serverQuestions = questionsData?.questions || {}
 
             // Merge with fallback so required bedroom questions are always present
@@ -749,7 +749,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         })
 
         if (startResponse.ok) {
-          const sessionData = await startResponse.json()
+          const sessionData = await safeJson<any>(startResponse, 'POST /api/game/start')
           const newSessionId = sessionData.session?.id || sessionData.sessionId || sessionData.id
           if (newSessionId) {
             setGameSessionId(newSessionId)
@@ -1596,6 +1596,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
                     disabled={isFinishingGame}  // ✅ Disable while finishGame is in progress
                     onClick={() => {
                       // Reset mission result state
+                     
                       setMissionResult(null)
                       // Keep the updated score and stats for HUD display
                       // The useEffect will create a new game session automatically
