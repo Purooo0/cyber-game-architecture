@@ -321,8 +321,11 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
 
   // Complete game scenario (use finish endpoint which handles session completion)
   const completeScenarioWithBackend = async (result: 'success' | 'failed') => {
-    if (!missionSessionId) {  // ✅ Use missionSessionId instead of gameSessionId
-      console.error('[CafeScenario] Cannot complete: No missionSessionId')
+    // ✅ Always prefer the mission session id (the one created by /api/game/start for this scenario)
+    const sessionIdToFinish = missionSessionId || gameSessionId
+
+    if (!sessionIdToFinish) {  // ✅ Use mission session
+      console.error('[CafeScenario] Cannot complete: No session id to finish')
       setCompletionError('No game session found')
       return
     }
@@ -346,7 +349,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
       setEndingXpAwarded(null)
 
       console.log('[CafeScenario] Sending game finish to backend...', {
-        sessionId: missionSessionId,
+        sessionId: sessionIdToFinish,
         endingId,
         scenarioId,
         score,
@@ -362,7 +365,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          sessionId: missionSessionId,
+          sessionId: sessionIdToFinish,
           endingId,
         }),
       })
@@ -1302,7 +1305,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
       {/* Laptop Popup - always rendered to preserve state, but hidden when closed */}
       <div className={showLaptopPopup ? '' : 'hidden'}>
         <LaptopPopup
-          sessionId={gameSessionId}  // ✅ Pass sessionId for feedback logging
+          sessionId={missionSessionId || gameSessionId}  // ✅ Use mission session id for feedback logging
           feedbackQuestions={feedbackQuestions}  // ✅ Pass fetched questions
           onClose={() => setShowLaptopPopup(false)}
           onMentorMessage={(msg) => setMentorHint(msg)}

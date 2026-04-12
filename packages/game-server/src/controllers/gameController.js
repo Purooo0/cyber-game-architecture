@@ -236,9 +236,16 @@ export const finishGame = async (req, res) => {
 
       // Determine success/fail by endingId naming convention if possible
       const ending = (endingId || '').toLowerCase()
-      const isSuccess = ending.includes('good') || ending.includes('success') || ending.includes('safe')
+
+      // Mission 2 uses bonus/penalty as ending identifiers
+      // (bonus = success, penalty = fail)
+      const isSuccess = ending === 'bonus'
         ? true
-        : (ending.includes('bad') || ending.includes('fail') || ending.includes('phished') ? false : null)
+        : ending === 'penalty'
+          ? false
+          : (ending.includes('good') || ending.includes('success') || ending.includes('safe'))
+            ? true
+            : (ending.includes('bad') || ending.includes('fail') || ending.includes('phished') ? false : null)
 
       const runRef = db.ref('analytics/runs').push()
       await runRef.set({
