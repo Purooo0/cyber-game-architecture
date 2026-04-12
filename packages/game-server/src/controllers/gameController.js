@@ -228,6 +228,39 @@ export const finishGame = async (req, res) => {
       console.error('[GameServer] Error awarding badge:', badgeError)
     }
 
+    // ✅ Analytics event: store raw run data in Firebase for admin metrics
+    try {
+      const completedAt = session.completedAt ? new Date(session.completedAt).getTime() : Date.now()
+      const startedAt = session.startedAt ? new Date(session.startedAt).getTime() : null
+      const durationMs = startedAt ? Math.max(0, completedAt - startedAt) : null
+
+      // Determine success/fail by endingId naming convention if possible
+      const ending = (endingId || '').toLowerCase()
+      const isSuccess = ending.includes('good') || ending.includes('success') || ending.includes('safe')
+        ? true
+        : (ending.includes('bad') || ending.includes('fail') || ending.includes('phished') ? false : null)
+
+      const runRef = db.ref('analytics/runs').push()
+      await runRef.set({
+        runId: runRef.key,
+        userId,
+        scenarioId: session.scenarioId,
+        sessionId: session._id?.toString?.() || session._id,
+        endingId: endingId || null,
+        isSuccess,
+        sessionScore,
+        scoreAwarded: scoreToAward,
+        xpAwarded: xpToAward,
+        startedAt: startedAt ? new Date(startedAt).toISOString() : null,
+        completedAt: new Date(completedAt).toISOString(),
+        durationMs,
+        createdAt: new Date().toISOString(),
+      })
+    } catch (analyticsError) {
+      console.error('[GameServer] Analytics run logging error:', analyticsError)
+      // Do not fail the request
+    }
+
     res.json({
       success: true,
       session: {
@@ -258,7 +291,7 @@ export const finishGame = async (req, res) => {
 export const logFeedbackAnswer = async (req, res) => {
   try {
     const { sessionId, actionType, questionType, questionText, selectedIndex, selectedOption, isCorrect } = req.body
-    
+
     if (!sessionId || !actionType) {
       return res.status(400).json({ error: 'Missing sessionId or actionType' })
     }
@@ -270,6 +303,7 @@ export const logFeedbackAnswer = async (req, res) => {
 
     // Add feedback answer to session actions
     session.feedbackAnswers = session.feedbackAnswers || []
+    const answerTimestamp = new Date()
     session.feedbackAnswers.push({
       actionType,
       questionType,
@@ -277,10 +311,32 @@ export const logFeedbackAnswer = async (req, res) => {
       selectedIndex,
       selectedOption,
       isCorrect,
-      timestamp: new Date()
+      timestamp: answerTimestamp
     })
 
     await session.save()
+
+    // ✅ Analytics event: store raw feedback answer data in Firebase
+    try {
+      const answerRef = db.ref('analytics/feedbackAnswers').push()
+      await answerRef.set({
+        answerId: answerRef.key,
+        userId: session.userId,
+        scenarioId: session.scenarioId,
+        sessionId: session._id?.toString?.() || session._id,
+        actionType,
+        questionType: questionType || null,
+        questionText: questionText || null,
+        selectedIndex: typeof selectedIndex === 'number' ? selectedIndex : null,
+        selectedOption: selectedOption || null,
+        isCorrect: !!isCorrect,
+        timestamp: answerTimestamp.toISOString(),
+        createdAt: new Date().toISOString(),
+      })
+    } catch (analyticsError) {
+      console.error('[GameServer] Analytics feedback logging error:', analyticsError)
+      // Do not fail the request
+    }
 
     console.log(`[GameServer] Feedback answer logged:`, {
       actionType,
@@ -615,6 +671,196 @@ export const getUserEndingTracking = async (req, res) => {
   }
 }
 
+/**
+ * Get admin analytics data (ADMIN ONLY)
+ */
+export const getAdminAnalytics = async (req, res) => {
+  try {
+    const { scenarioId, userId, from, to } = req.query
+
+    const fromMs = from ? new Date(String(from)).getTime() : null
+    const toMs = to ? new Date(String(to)).getTime() : null
+
+    const inRange = (iso) => {
+      if (!iso) return true
+      const t = new Date(iso).getTime()
+      if (Number.isFinite(fromMs) && t < fromMs) return false
+      if (Number.isFinite(toMs) && t > toMs) return false
+      return true
+    }
+
+    const runsSnap = await db.ref('analytics/runs').once('value')
+    const answersSnap = await db.ref('analytics/feedbackAnswers').once('value')
+
+    let runs = Object.values(runsSnap.val() || {})
+    let answers = Object.values(answersSnap.val() || {})
+
+    // filter by optional params
+    if (scenarioId) {
+      runs = runs.filter(r => r.scenarioId === scenarioId)
+      answers = answers.filter(a => a.scenarioId === scenarioId)
+    }
+    if (userId) {
+      runs = runs.filter(r => r.userId === userId)
+      answers = answers.filter(a => a.userId === userId)
+    }
+
+    // filter by date range
+    runs = runs.filter(r => inRange(r.completedAt || r.createdAt))
+    answers = answers.filter(a => inRange(a.timestamp || a.createdAt))
+
+    const perScenario = {}
+    const perUser = {}
+
+    const ensureScenario = (sid) => {
+      if (!perScenario[sid]) {
+        perScenario[sid] = {
+          scenarioId: sid,
+          runs: 0,
+          success: 0,
+          failed: 0,
+          unknownOutcome: 0,
+          totalSessionScore: 0,
+          avgSessionScore: 0,
+          totalDurationMs: 0,
+          avgDurationMs: 0,
+          medianDurationMs: 0,
+          _durations: [],
+          feedbackTotal: 0,
+          feedbackCorrect: 0,
+          feedbackIncorrect: 0,
+          feedbackCorrectPct: 0,
+        }
+      }
+      return perScenario[sid]
+    }
+
+    const ensureUser = (uid) => {
+      if (!perUser[uid]) perUser[uid] = { userId: uid, runs: 0, success: 0, failed: 0, totalSessionScore: 0, totalDurationMs: 0 }
+      return perUser[uid]
+    }
+
+    const allDurations = []
+
+    // aggregate runs
+    for (const r of runs) {
+      const s = ensureScenario(r.scenarioId || 'unknown')
+      s.runs += 1
+      s.totalSessionScore += Number(r.sessionScore || 0)
+
+      if (typeof r.durationMs === 'number') {
+        s.totalDurationMs += r.durationMs
+        s._durations.push(r.durationMs)
+        allDurations.push(r.durationMs)
+      }
+
+      if (r.isSuccess === true) s.success += 1
+      else if (r.isSuccess === false) s.failed += 1
+      else s.unknownOutcome += 1
+
+      const u = ensureUser(r.userId || 'unknown')
+      u.runs += 1
+      u.totalSessionScore += Number(r.sessionScore || 0)
+      if (typeof r.durationMs === 'number') u.totalDurationMs += r.durationMs
+      if (r.isSuccess === true) u.success += 1
+      else if (r.isSuccess === false) u.failed += 1
+    }
+
+    const median = (arr) => {
+      const xs = arr.filter(n => typeof n === 'number' && Number.isFinite(n)).sort((a, b) => a - b)
+      if (xs.length === 0) return 0
+      const mid = Math.floor(xs.length / 2)
+      return xs.length % 2 === 0 ? (xs[mid - 1] + xs[mid]) / 2 : xs[mid]
+    }
+
+    // finalize scenario averages + median
+    for (const sid of Object.keys(perScenario)) {
+      const s = perScenario[sid]
+      s.avgSessionScore = s.runs > 0 ? s.totalSessionScore / s.runs : 0
+      s.avgDurationMs = s.runs > 0 ? s.totalDurationMs / s.runs : 0
+      s.medianDurationMs = median(s._durations)
+      delete s._durations
+    }
+
+    // aggregate feedback answers
+    const feedbackByActionType = {}
+    for (const a of answers) {
+      const sid = a.scenarioId || 'unknown'
+      const s = ensureScenario(sid)
+      s.feedbackTotal += 1
+      if (a.isCorrect) s.feedbackCorrect += 1
+      else s.feedbackIncorrect += 1
+
+      const at = a.actionType || 'unknown'
+      if (!feedbackByActionType[at]) feedbackByActionType[at] = { total: 0, correct: 0, incorrect: 0 }
+      feedbackByActionType[at].total += 1
+      if (a.isCorrect) feedbackByActionType[at].correct += 1
+      else feedbackByActionType[at].incorrect += 1
+
+      ensureUser(a.userId || 'unknown')
+    }
+
+    for (const sid of Object.keys(perScenario)) {
+      const s = perScenario[sid]
+      s.feedbackCorrectPct = s.feedbackTotal > 0 ? (s.feedbackCorrect / s.feedbackTotal) * 100 : 0
+    }
+
+    const overallMedianDurationMs = median(allDurations)
+
+    // overall metrics
+    const overall = {
+      runsTotal: runs.length,
+      feedbackTotal: answers.length,
+      feedbackCorrect: answers.filter(a => !!a.isCorrect).length,
+      feedbackIncorrect: answers.filter(a => !a.isCorrect).length,
+      feedbackCorrectPct: answers.length ? (answers.filter(a => !!a.isCorrect).length / answers.length) * 100 : 0,
+      avgSessionScoreOverall: runs.length ? runs.reduce((sum, r) => sum + Number(r.sessionScore || 0), 0) / runs.length : 0,
+      avgDurationMsOverall: runs.length ? runs.reduce((sum, r) => sum + Number(r.durationMs || 0), 0) / runs.length : 0,
+      medianDurationMsOverall: overallMedianDurationMs,
+      successPctOverall: runs.length ? (runs.filter(r => r.isSuccess === true).length / runs.length) * 100 : 0,
+      failedPctOverall: runs.length ? (runs.filter(r => r.isSuccess === false).length / runs.length) * 100 : 0,
+      feedbackByActionType,
+    }
+
+    // scenario score comparison (only for known scenario IDs)
+    const scenarioScoreTotals = Object.fromEntries(
+      Object.entries(perScenario).map(([sid, s]) => [sid, s.totalSessionScore])
+    )
+
+    res.json({
+      success: true,
+      filters: { scenarioId: scenarioId || null, userId: userId || null, from: from || null, to: to || null },
+      overall,
+      byScenario: perScenario,
+      byUser: perUser,
+      scenarioScoreTotals,
+      rawCounts: { runs: runs.length, feedbackAnswers: answers.length },
+    })
+  } catch (error) {
+    console.error('[GameServer] Error generating admin analytics:', error)
+    res.status(500).json({ error: 'Failed to generate analytics' })
+  }
+}
+
+/**
+ * Get admin raw analytics data (ADMIN ONLY)
+ */
+export const getAdminAnalyticsRaw = async (req, res) => {
+  try {
+    const { type } = req.query
+    if (type !== 'runs' && type !== 'feedbackAnswers') {
+      return res.status(400).json({ error: 'Invalid type. Use runs or feedbackAnswers' })
+    }
+
+    const snap = await db.ref(`analytics/${type}`).once('value')
+    const rows = Object.values(snap.val() || {})
+    res.json({ success: true, type, total: rows.length, rows })
+  } catch (error) {
+    console.error('[GameServer] Error getting raw analytics:', error)
+    res.status(500).json({ error: 'Failed to get raw analytics' })
+  }
+}
+
 // ✅ Keep default export for compatibility with routes importing gameController as default
 export default {
   startGame,
@@ -627,4 +873,6 @@ export default {
   getFeedbackByUser,
   getFeedbackQuestions,
   getUserEndingTracking,
+  getAdminAnalytics,
+  getAdminAnalyticsRaw,
 }

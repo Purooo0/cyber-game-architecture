@@ -36,3 +36,27 @@ export const authenticate = (req, res, next) => {
     res.status(401).json({ error: 'Invalid token' })
   }
 }
+
+// Admin-only middleware (simple allowlist by email)
+export const requireAdmin = async (req, res, next) => {
+  try {
+    const userId = req.userId
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' })
+
+    // Allowlist admin account(s)
+    const adminEmails = new Set(['admin26@gmail.com'])
+
+    // Read user email from Firebase
+    const { db } = await import('../config/firebase.js')
+    const snapshot = await db.ref(`users/${userId}`).once('value')
+    const user = snapshot.val()
+
+    if (!user?.email || !adminEmails.has(user.email)) {
+      return res.status(403).json({ error: 'Admin access required' })
+    }
+
+    next()
+  } catch (e) {
+    return res.status(500).json({ error: 'Failed to verify admin access' })
+  }
+}

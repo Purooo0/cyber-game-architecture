@@ -9,7 +9,8 @@
     "start": "node src/index.js",
     "build": "echo 'No build needed'",
     "lint": "echo 'Lint game-server'",
-    "test": "echo 'Run tests'"
+    "test": "echo 'Run tests'",
+    "type-check": "echo 'No type-check for game-server'"
   },
   "dependencies": {
     "cors": "^2.8.5",
