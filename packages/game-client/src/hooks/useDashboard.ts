@@ -197,7 +197,7 @@ export const useUserStats = (token?: string | null) => {
       console.log('[useUserStats] ⏳ Request already in progress, waiting...')
       try {
         const result = await cache.promise
-        setStats(result)
+        if (result) setStats(result)
         setError(null)
         setLoading(false)
       } catch (err) {
@@ -231,9 +231,12 @@ export const useUserStats = (token?: string | null) => {
           setLoading(false)
           return null
         }
-        
+
         if (!response.ok) {
-          throw new Error('Failed to fetch stats')
+          // ✅ Do not clear existing stats on transient failures.
+          const body = await response.text().catch(() => '')
+          console.error('[useUserStats] Non-ok response body (first 200 chars):', body.substring(0, 200))
+          throw new Error(`Failed to fetch stats: ${response.status}`)
         }
 
         const data = await response.json()
@@ -251,8 +254,13 @@ export const useUserStats = (token?: string | null) => {
         cache.promise = null
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
         setError(errorMsg)
-        setStats(null)
-        throw err
+        // ✅ Keep last known stats if any
+        if (cache.data) {
+          setStats(cache.data)
+          return cache.data
+        }
+        // If we have no cache, keep current state (don't force to 0)
+        return null
       } finally {
         setLoading(false)
       }

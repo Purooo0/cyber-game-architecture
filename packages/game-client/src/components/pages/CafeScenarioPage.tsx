@@ -65,6 +65,8 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
   // ✅ NEW: values returned from finishGame (score limited per-ending; XP always awarded)
   const [endingScoreAwarded, setEndingScoreAwarded] = useState<number | null>(null)
   const [endingXpAwarded, setEndingXpAwarded] = useState<number | null>(null)
+  const [isFinishing, setIsFinishing] = useState(false)
+
   const [userStats, setUserStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [scenarioData, setScenarioData] = useState<any>(null)
@@ -749,6 +751,9 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
     }
   }
 
+  // Show ending overlay whenever a mission result exists (existing UI already renders success/failed screens)
+  const showEndingOverlay = missionResult !== null
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -1312,6 +1317,33 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
         />
       )}
 
+      {showEndingOverlay && (
+        <div className="ending-overlay">
+          {/* ...existing code (title/ending text)... */}
+
+          {isFinishing || endingScoreAwarded === null || endingXpAwarded === null ? (
+            <div className="mt-4 text-center">
+              <div className="text-white/80">Menghitung hasil...</div>
+            </div>
+          ) : (
+            <>
+              {/* If replay (scoreAwarded==0), hide score and show XP only */}
+              {endingScoreAwarded > 0 ? (
+                <div className="mt-4 text-center">
+                  <div className="text-white font-semibold">Score: {endingScoreAwarded}</div>
+                  <div className="text-white/80">XP: +{endingXpAwarded}</div>
+                </div>
+              ) : (
+                <div className="mt-4 text-center">
+                  <div className="text-white/80">XP: +{endingXpAwarded}</div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ...existing code (buttons)... */}
+        </div>
+      )}
     </div>
   )
 }
