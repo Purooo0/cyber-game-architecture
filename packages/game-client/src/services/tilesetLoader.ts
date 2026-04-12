@@ -33,10 +33,17 @@ export async function loadTilesetFromTsx(tilesetPath: string): Promise<EmbeddedT
     const xmlText = await response.text()
 
     // If Vercel/SPA rewrite ever serves HTML for an .xml/.tsx request, avoid DOMParser weirdness.
-    if (contentType.includes('text/html') || /^\s*<!doctype html/i.test(xmlText) || /^\s*<html/i.test(xmlText)) {
+    if (
+      contentType.includes('text/html') ||
+      /^\s*<!doctype html/i.test(xmlText) ||
+      /^\s*<html/i.test(xmlText) ||
+      // common SPA payload marker
+      /<div\s+id=["']root["']/.test(xmlText)
+    ) {
       console.warn(`Tileset request returned HTML instead of XML: ${tilesetPath}`, {
         contentType,
-        preview: xmlText.substring(0, 120),
+        finalUrl: response.url,
+        preview: xmlText.substring(0, 140),
       })
       return null
     }
