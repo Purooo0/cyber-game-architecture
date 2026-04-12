@@ -191,23 +191,56 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     const preloadTriggerCoordinates = async () => {
       try {
         const response = await fetch(currentMapPath)
-        const mapData = await response.json()
-        
+
+        if (!response.ok) {
+          console.warn('[Map Preload] Failed to load map:', currentMapPath, response.status)
+          return
+        }
+
+        const contentType = response.headers.get('content-type') || ''
+        const text = await response.text()
+
+        // Guard: avoid parsing HTML as JSON (Safari can throw "expected pattern" / SyntaxError)
+        if (
+          contentType.includes('text/html') ||
+          /^\s*<!doctype html/i.test(text) ||
+          /^\s*<html/i.test(text) ||
+          /<div\s+id=["']root["']/.test(text)
+        ) {
+          console.warn('[Map Preload] Map request returned HTML instead of TMJ JSON:', {
+            currentMapPath,
+            contentType,
+            finalUrl: response.url,
+            preview: text.substring(0, 140),
+          })
+          return
+        }
+
+        let mapData: any
+        try {
+          mapData = JSON.parse(text)
+        } catch (e) {
+          console.warn('[Map Preload] Failed to parse TMJ JSON:', {
+            currentMapPath,
+            contentType,
+            preview: text.substring(0, 140),
+          })
+          return
+        }
+
         // Find next_scene_trigger in the Trigger object layer (for bedroom/phishing map)
         const triggerLayer = mapData.layers?.find((layer: any) => layer.name === 'Trigger')
         if (triggerLayer && triggerLayer.objects) {
-          const nextSceneTrigger = triggerLayer.objects.find(
-            (obj: any) => obj.name === 'next_scene_trigger'
-          )
+          const nextSceneTrigger = triggerLayer.objects.find((obj: any) => obj.name === 'next_scene_trigger')
           if (nextSceneTrigger) {
-            setNextSceneHintPos({ 
-              x: nextSceneTrigger.x, 
-              y: nextSceneTrigger.y 
+            setNextSceneHintPos({
+              x: nextSceneTrigger.x,
+              y: nextSceneTrigger.y,
             })
             console.log(`[Map Preload] Pre-loaded next_scene_trigger at (${nextSceneTrigger.x}, ${nextSceneTrigger.y})`)
           }
         }
-        
+
         // For classroom map: Pre-load speak_friend and speak_teacher trigger coordinates
         // REMOVED: No longer needed since using click-to-interact instead of E indicator
       } catch (error) {
