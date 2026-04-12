@@ -23,20 +23,38 @@ export interface EmbeddedTileset {
 export async function loadTilesetFromTsx(tilesetPath: string): Promise<EmbeddedTileset | null> {
   try {
     const response = await fetch(tilesetPath)
-    
+
     if (!response.ok) {
-      console.warn(`Failed to load tileset file: ${tilesetPath}`)
+      console.warn(`Failed to load tileset file: ${tilesetPath} (${response.status})`)
       return null
     }
 
+    const contentType = response.headers.get('content-type') || ''
     const xmlText = await response.text()
-    
+
+    // If Vercel/SPA rewrite ever serves HTML for an .xml/.tsx request, avoid DOMParser weirdness.
+    if (contentType.includes('text/html') || /^\s*<!doctype html/i.test(xmlText) || /^\s*<html/i.test(xmlText)) {
+      console.warn(`Tileset request returned HTML instead of XML: ${tilesetPath}`, {
+        contentType,
+        preview: xmlText.substring(0, 120),
+      })
+      return null
+    }
+
+    if (!xmlText || xmlText.trim().length === 0) {
+      console.warn(`Tileset file is empty: ${tilesetPath}`)
+      return null
+    }
+
     // Parse XML
     const parser = new DOMParser()
     const xmlDoc = parser.parseFromString(xmlText, 'text/xml')
-    
+
     if (xmlDoc.documentElement.tagName === 'parsererror') {
-      console.warn(`Failed to parse tileset XML: ${tilesetPath}`)
+      console.warn(`Failed to parse tileset XML: ${tilesetPath}`, {
+        contentType,
+        preview: xmlText.substring(0, 200),
+      })
       return null
     }
 
@@ -60,7 +78,7 @@ export async function loadTilesetFromTsx(tilesetPath: string): Promise<EmbeddedT
     const columns = parseInt(tilesetElement.getAttribute('columns') || '0')
     const margin = parseInt(tilesetElement.getAttribute('margin') || '0')
     const spacing = parseInt(tilesetElement.getAttribute('spacing') || '0')
-    
+
     const imageSource = imageElement.getAttribute('source') || ''
     const imagewidth = parseInt(imageElement.getAttribute('width') || '0')
     const imageheight = parseInt(imageElement.getAttribute('height') || '0')

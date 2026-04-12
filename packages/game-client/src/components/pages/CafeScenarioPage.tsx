@@ -340,6 +340,11 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
     const endingId = result === 'success' ? 'bonus' : 'penalty'
 
     try {
+      // ✅ gate overlay numbers until backend returns
+      setIsFinishing(true)
+      setEndingScoreAwarded(null)
+      setEndingXpAwarded(null)
+
       console.log('[CafeScenario] Sending game finish to backend...', {
         sessionId: missionSessionId,
         endingId,
@@ -385,8 +390,11 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
 
       // ✅ Capture backend-awarded values (score can be 0 on replay; XP always awarded)
       if (data?.session) {
-        if (typeof data.session.scoreAwarded === 'number') setEndingScoreAwarded(data.session.scoreAwarded)
-        if (typeof data.session.xp === 'number') setEndingXpAwarded(data.session.xp)
+        setEndingScoreAwarded(typeof data.session.scoreAwarded === 'number' ? data.session.scoreAwarded : 0)
+        setEndingXpAwarded(typeof data.session.xp === 'number' ? data.session.xp : 0)
+      } else {
+        setEndingScoreAwarded(0)
+        setEndingXpAwarded(0)
       }
       
       // Update base user score from finishGame response
@@ -426,6 +434,8 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
       console.error('[CafeScenario] Finish game error:', errorMsg)
       setCompletionError(errorMsg)
       // Don't throw - still show result overlay even if backend update fails
+    } finally {
+      setIsFinishing(false)
     }
   }
 
@@ -1079,33 +1089,42 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
               </div>
 
               <div className="grid grid-cols-3 gap-4 py-4">
-                {/* Score: show only when backend actually awards score (replay => 0) */}
-                {(endingScoreAwarded ?? sessionScoreEarned) !== 0 && (
-                  <div className="space-y-2">
-                    <Star className="w-6 h-6 text-yellow-400 mx-auto" />
-                    <p className="font-pixel text-2xl text-foreground">+{endingScoreAwarded ?? sessionScoreEarned}</p>
-                    <p className="text-xs text-foreground/60">Poin Diperoleh</p>
+                {/* While finishing, don't show any numbers that may be stale */}
+                {isFinishing || endingScoreAwarded === null || endingXpAwarded === null ? (
+                  <div className="col-span-3 text-center text-foreground/70 text-sm">
+                    Menghitung hasil...
                   </div>
-                )}
+                ) : (
+                  <>
+                    {/* Score: show only when backend actually awards score (replay => 0) */}
+                    {endingScoreAwarded !== 0 && (
+                      <div className="space-y-2">
+                        <Star className="w-6 h-6 text-yellow-400 mx-auto" />
+                        <p className="font-pixel text-2xl text-foreground">+{endingScoreAwarded}</p>
+                        <p className="text-xs text-foreground/60">Poin Diperoleh</p>
+                      </div>
+                    )}
 
-                <div className="space-y-2">
-                  <Zap className="w-6 h-6 text-secondary mx-auto" />
-                  <p className="font-pixel text-2xl text-secondary">+{endingXpAwarded ?? Math.round(sessionScoreEarned / 10)}</p>
-                  <p className="text-xs text-foreground/60">EXP Diperoleh</p>
-                </div>
+                    <div className="space-y-2">
+                      <Zap className="w-6 h-6 text-secondary mx-auto" />
+                      <p className="font-pixel text-2xl text-secondary">+{endingXpAwarded}</p>
+                      <p className="text-xs text-foreground/60">EXP Diperoleh</p>
+                    </div>
 
-                {/* Badge: only meaningful on first completion, but keep UI simple: show +1 only when score awarded */}
-                {((endingScoreAwarded ?? sessionScoreEarned) !== 0) && (
-                  <div className="space-y-2">
-                    <Award className="w-6 h-6 text-accent mx-auto" />
-                    <p className="font-pixel text-2xl text-accent">+1</p>
-                    <p className="text-xs text-foreground/60">Badge Terbuka</p>
-                  </div>
+                    {/* Badge: show only when score actually awarded */}
+                    {endingScoreAwarded !== 0 && (
+                      <div className="space-y-2">
+                        <Award className="w-6 h-6 text-accent mx-auto" />
+                        <p className="font-pixel text-2xl text-accent">+1</p>
+                        <p className="text-xs text-foreground/60">Badge Terbuka</p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
               {/* Show badge card only when actually awarded (score awarded) */}
-              {((endingScoreAwarded ?? sessionScoreEarned) !== 0) && (
+              {!isFinishing && endingScoreAwarded !== null && endingScoreAwarded !== 0 && (
                 <Card className="bg-accent/10 border-2 border-accent p-4">
                   <div className="flex items-center gap-3">
                     <Award className="w-8 h-8 text-accent flex-shrink-0" />
@@ -1315,34 +1334,6 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
           receiptOnly={receiptOnlyMode}
           cartData={lastCartData}
         />
-      )}
-
-      {showEndingOverlay && (
-        <div className="ending-overlay">
-          {/* ...existing code (title/ending text)... */}
-
-          {isFinishing || endingScoreAwarded === null || endingXpAwarded === null ? (
-            <div className="mt-4 text-center">
-              <div className="text-white/80">Menghitung hasil...</div>
-            </div>
-          ) : (
-            <>
-              {/* If replay (scoreAwarded==0), hide score and show XP only */}
-              {endingScoreAwarded > 0 ? (
-                <div className="mt-4 text-center">
-                  <div className="text-white font-semibold">Score: {endingScoreAwarded}</div>
-                  <div className="text-white/80">XP: +{endingXpAwarded}</div>
-                </div>
-              ) : (
-                <div className="mt-4 text-center">
-                  <div className="text-white/80">XP: +{endingXpAwarded}</div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ...existing code (buttons)... */}
-        </div>
       )}
     </div>
   )

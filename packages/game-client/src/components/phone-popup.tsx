@@ -667,51 +667,69 @@ export function PhonePopup({ onClose, onMentorMessage, onMissionFail, onMissionS
             )}
 
             {/* FEEDBACK QUIZ — REPORT PATH */}
-            {screen === 'feedback-report' && feedbackQuestions?.bedroom_report && (
-              <FeedbackQuizView
-                quiz={feedbackQuestions.bedroom_report}
-                actionLabel="reporting that email"
-                sessionId={sessionId}  // ✅ Pass sessionId
-                actionType="reported_phishing"  // ✅ Pass actionType
-                onSuccess={async () => {
-                  // Log action to backend and WAIT for it to complete
-                  await onMissionSuccess('reported_phishing')
-                  
-                  // Then show mentor message
-                  onMentorMessage(
-                    "Sempurna! Anda dengan benar mengidentifikasi dan melaporkan email phishing. Pemikiran cepat Anda melindungi jaringan sekolah. Misi berhasil!"
-                  )
-                  
-                  // Finally close phone after delay
-                  setTimeout(() => {
-                    onClose()
-                  }, 2000)
-                }}
-              />
+            {screen === 'feedback-report' && (
+              feedbackQuestions?.bedroom_report ? (
+                <FeedbackQuizView
+                  quiz={feedbackQuestions.bedroom_report}
+                  actionLabel="reporting that email"
+                  sessionId={sessionId}  // ✅ Pass sessionId
+                  actionType="reported_phishing"  // ✅ Pass actionType
+                  onSuccess={async () => {
+                    await onMissionSuccess('reported_phishing')
+                    onMentorMessage(
+                      "Sempurna! Anda dengan benar mengidentifikasi dan melaporkan email phishing. Pemikiran cepat Anda melindungi jaringan sekolah. Misi berhasil!"
+                    )
+                    setTimeout(() => {
+                      onClose()
+                    }, 2000)
+                  }}
+                />
+              ) : (
+                <div className="flex flex-col h-full overflow-y-auto bg-[hsl(220_40%_7%)] p-3 space-y-3">
+                  <div className="flex items-center gap-2 border-b-2 border-primary/30 pb-2">
+                    <span className="font-pixel text-[9px] text-primary leading-tight">CYBER MENTOR — FEEDBACK CHECK</span>
+                  </div>
+                  <div className="border-2 border-secondary/40 bg-secondary/5 px-3 py-2 space-y-1">
+                    <p className="text-[9px] text-secondary font-pixel">CYBER MENTOR:</p>
+                    <p className="text-[10px] text-foreground/80 leading-relaxed">
+                      Memuat pertanyaan... Jika layar tetap kosong, tutup dan buka HP lagi.
+                    </p>
+                  </div>
+                </div>
+              )
             )}
 
             {/* FEEDBACK QUIZ — DELETE PATH */}
-            {screen === 'feedback-delete' && feedbackQuestions?.bedroom_delete && (
-              <FeedbackQuizView
-                quiz={feedbackQuestions.bedroom_delete}
-                actionLabel="deleting that email"
-                sessionId={sessionId}  // ✅ Pass sessionId
-                actionType="deleted_phishing"  // ✅ Pass actionType
-                onSuccess={async () => {
-                  // Log action to backend and WAIT for it to complete
-                  await onMissionSuccess('deleted_phishing')
-                  
-                  // Then show mentor message
-                  onMentorMessage(
-                    "Sempurna! Anda dengan benar mengidentifikasi email yang mencurigakan dan menghapusnya. Kesadaran keamanan Anda mencegah potensi pelanggaran. Misi berhasil!"
-                  )
-                  
-                  // Finally close phone after delay
-                  setTimeout(() => {
-                    onClose()
-                  }, 2000)
-                }}
-              />
+            {screen === 'feedback-delete' && (
+              feedbackQuestions?.bedroom_delete ? (
+                <FeedbackQuizView
+                  quiz={feedbackQuestions.bedroom_delete}
+                  actionLabel="deleting that email"
+                  sessionId={sessionId}  // ✅ Pass sessionId
+                  actionType="deleted_phishing"  // ✅ Pass actionType
+                  onSuccess={async () => {
+                    await onMissionSuccess('deleted_phishing')
+                    onMentorMessage(
+                      "Sempurna! Anda dengan benar mengidentifikasi email yang mencurigakan dan menghapusnya. Kesadaran keamanan Anda mencegah potensi pelanggaran. Misi berhasil!"
+                    )
+                    setTimeout(() => {
+                      onClose()
+                    }, 2000)
+                  }}
+                />
+              ) : (
+                <div className="flex flex-col h-full overflow-y-auto bg-[hsl(220_40%_7%)] p-3 space-y-3">
+                  <div className="flex items-center gap-2 border-b-2 border-primary/30 pb-2">
+                    <span className="font-pixel text-[9px] text-primary leading-tight">CYBER MENTOR — FEEDBACK CHECK</span>
+                  </div>
+                  <div className="border-2 border-secondary/40 bg-secondary/5 px-3 py-2 space-y-1">
+                    <p className="text-[9px] text-secondary font-pixel">CYBER MENTOR:</p>
+                    <p className="text-[10px] text-foreground/80 leading-relaxed">
+                      Memuat pertanyaan... Jika layar tetap kosong, tutup dan buka HP lagi.
+                    </p>
+                  </div>
+                </div>
+              )
             )}
           </div>
 
