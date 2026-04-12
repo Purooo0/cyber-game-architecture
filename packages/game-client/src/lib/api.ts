@@ -6,8 +6,14 @@ const raw = import.meta.env.VITE_API_URL
 export const API_URL = raw && raw.trim().length > 0
   ? raw.replace(/\/+$/, '')
   : (import.meta.env.PROD
-      ? '' // same-origin (only works if you proxy /api from the same host)
+      ? 'MISSING_VITE_API_URL' // helps catch misconfig early; never call same-origin by accident
       : 'http://localhost:3000')
+
+export function assertApiUrlConfigured() {
+  if (import.meta.env.PROD && (!raw || raw.trim().length === 0)) {
+    throw new Error('VITE_API_URL is not configured in production. Set it to your deployed game-server base URL.')
+  }
+}
 
 // Safely parse JSON responses.
 // Prevents "Unexpected token '<'" when an endpoint returns HTML (SPA fallback / 404 page / proxy misroute).

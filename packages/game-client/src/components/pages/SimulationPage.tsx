@@ -536,9 +536,13 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         }
 
         if (response?.ok) {
-          const data = await safeJson<any>(response, `GET /api/game/${normalizedScenarioId}`)
-          setScenarioData(data.scenario || data)
-          console.log('Scenario data loaded:', data.scenario?.title || data.title)
+          try {
+            const data = await safeJson<any>(response, `GET /api/game/${normalizedScenarioId}`)
+            setScenarioData(data.scenario || data)
+            console.log('Scenario data loaded:', data.scenario?.title || data.title)
+          } catch (e) {
+            console.warn('[SimulationPage] Scenario API returned non-JSON; continuing without scenario data.', e)
+          }
         } else {
           console.warn('Could not fetch scenario data, game will continue without API data')
           // Game will continue without scenario data
