@@ -187,7 +187,20 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
   // NEW: Update canvas position when component mounts or layout changes
   useEffect(() => {
-    // Pre-load trigger coordinates from TMJ file when map path changes
+    const updateCanvasPosition = () => {
+      const canvas = document.querySelector('canvas')
+      if (!canvas) return
+      const rect = canvas.getBoundingClientRect()
+      setCanvasPosition({ x: rect.left + window.scrollX, y: rect.top + window.scrollY })
+    }
+
+    updateCanvasPosition()
+    window.addEventListener('resize', updateCanvasPosition)
+    return () => window.removeEventListener('resize', updateCanvasPosition)
+  }, [currentMapPath, introDone])
+
+  // Preload trigger coordinates from TMJ file when map path changes
+  useEffect(() => {
     const preloadTriggerCoordinates = async () => {
       try {
         const response = await fetch(currentMapPath)
@@ -1202,18 +1215,21 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
                 {/* Next Scene Hint - Exclamation mark indicator */}
                 {showNextSceneHint && !isTransitioning && (
                   <div
-                    className="absolute z-30 pointer-events-none animate-bounce"
+                    className="fixed z-50 pointer-events-none"
                     style={{
-                      left: `${nextSceneHintPos.x + 480}px`,
-                      top: `${nextSceneHintPos.y - 24}px`,
+                      left: `${canvasPosition.x + nextSceneHintPos.x + 14}px`, // slight right offset
+                      top: `${canvasPosition.y + nextSceneHintPos.y - 60}px`,  // bottom tip sits above trigger box
                     }}
                   >
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-accent/30 blur-xl rounded-full scale-150" />
-                      <div className="relative w-12 h-12 bg-accent border-2 border-accent/80 flex items-center justify-center rounded-lg shadow-lg">
-                        <span className="font-pixel text-lg font-bold text-accent-foreground">!</span>
+                    <div className="relative select-none">
+                      {/* stronger glow so it stays visible at 100% zoom */}
+                      <div className="absolute inset-0 bg-accent/40 blur-2xl rounded-full scale-150" />
+                      <div className="relative w-10 h-10 bg-accent border-2 border-accent/90 flex items-center justify-center rounded-md shadow-xl">
+                        <span className="font-pixel text-base font-extrabold text-accent-foreground">!</span>
                       </div>
-                      <div className="absolute inset-0 border-2 border-accent rounded-lg animate-pulse" />
+                      <div className="absolute inset-0 border-2 border-accent rounded-md animate-pulse" />
+                      {/* small bottom pointer to make the 'tip' clearer */}
+                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-accent" />
                     </div>
                   </div>
                 )}
