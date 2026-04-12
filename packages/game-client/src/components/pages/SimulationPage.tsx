@@ -314,6 +314,34 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     },
   ]
 
+  // Local fallback questions to avoid blank feedback screens if API fails.
+  const FALLBACK_BEDROOM_QUESTIONS = {
+    bedroom_report: {
+      question: "Mengapa penting untuk melaporkan email yang mencurigakan daripada hanya mengabaikannya?",
+      options: [
+        "Sehingga email dihapus secara otomatis",
+        "Sehingga sistem dapat memperingatkan orang lain dan memblokir ancaman serupa",
+        "Karena pengirim akan dihukum segera",
+        "Untuk mendapatkan poin bonus di sistem sekolah",
+      ],
+      correctIndex: 1,
+      explanation:
+        "Melaporkan email yang mencurigakan membantu sistem keamanan mengidentifikasi dan memblokir upaya phishing serupa, melindungi semua orang — bukan hanya Anda.",
+    },
+    bedroom_delete: {
+      question: "Alamat pengirim adalah 'admin@school-notice.net'. Apa yang mencurigakan tentang hal ini?",
+      options: [
+        "Ini menggunakan domain gratis, bukan domain resmi sekolah",
+        "Ini memiliki terlalu banyak karakter",
+        "Itu berisi kata 'admin'",
+        "Tidak ada — itu terlihat sepenuhnya sah",
+      ],
+      correctIndex: 0,
+      explanation:
+        "Email sekolah yang sah menggunakan domain resmi seperti '@school.edu'. Domain gratis atau tidak dikenal seperti 'school-notice.net' adalah tanda bahaya untuk phishing.",
+    },
+  }
+
   // Utility function to log game action to backend
   const logGameAction = async (actionType: string) => {
     console.log('%c[🎮 LOG ACTION] 🚀🚀🚀 CALLED 🚀🚀🚀', 'color: #ffff00; background: #000; font-weight: bold; font-size: 14px')
@@ -502,7 +530,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           console.error('[SimulationPage] Error fetching user stats:', error)
         }
 
-        // ✅ NEW: Fetch feedback questions from backend
+        // ✅ Fetch feedback questions from backend
         try {
           setQuestionsLoading(true)
           const questionsResponse = await fetch(`${API_URL}/api/game/questions`, {
@@ -510,13 +538,23 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           })
           if (questionsResponse.ok) {
             const questionsData = await questionsResponse.json()
-            console.log('[SimulationPage] Feedback questions loaded:', Object.keys(questionsData.questions))
-            setFeedbackQuestions(questionsData.questions)
+            const serverQuestions = questionsData?.questions || {}
+
+            // Merge with fallback so required bedroom questions are always present
+            const merged = {
+              ...FALLBACK_BEDROOM_QUESTIONS,
+              ...serverQuestions,
+            }
+
+            console.log('[SimulationPage] Feedback questions loaded (merged):', Object.keys(merged))
+            setFeedbackQuestions(merged)
           } else {
             console.warn('[SimulationPage] Failed to fetch feedback questions:', questionsResponse.statusText)
+            setFeedbackQuestions(FALLBACK_BEDROOM_QUESTIONS)
           }
         } catch (error) {
           console.error('[SimulationPage] Error fetching feedback questions:', error)
+          setFeedbackQuestions(FALLBACK_BEDROOM_QUESTIONS)
         } finally {
           setQuestionsLoading(false)
         }
@@ -1557,7 +1595,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
               </div>
 
               {/* Title */}
-              <div>
+                           <div>
                 <h2 className="font-pixel text-3xl text-destructive mb-3">
                   SIMULATION
                   <br />

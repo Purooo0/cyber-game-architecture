@@ -46,30 +46,44 @@ export class TilemapRenderer {
     
     // For external tilesets (has source property)
     if (tileset.source) {
-      const imagePath = tileset.source.replace(/\.tsx$/, '.png')
-      const fullPath = `${this.assetsPath}${imagePath}`
-      const image = await this.loadImage(fullPath)
-      
-      // Try to load tileset metadata from .tsx file
+      // Tiled external tilesets in this project are XML files (often .xml, sometimes .tsx).
+      // The image filename is defined inside the XML, so never guess by swapping extensions.
       let finalTileWidth = tileset.tilewidth || tileWidth
       let finalTileHeight = tileset.tileheight || tileHeight
-      let finalColumns = tileset.columns || Math.floor(image.width / finalTileWidth)
+      let finalColumns = tileset.columns || 1
 
-      // If tilewidth/tileheight not in tileset object, try to parse from .tsx file
-      if (!tileset.tilewidth || !tileset.tileheight) {
-        try {
-          const tsxPath = `${this.assetsPath}${tileset.source}`
-          const tsxData = await this.loadTsxMetadata(tsxPath)
-          if (tsxData) {
-            finalTileWidth = tsxData.tilewidth || finalTileWidth
-            finalTileHeight = tsxData.tileheight || finalTileHeight
-            finalColumns = tsxData.columns || Math.floor(image.width / finalTileWidth)
-          }
-        } catch (error) {
-          // Fall back to default if parsing fails
-          console.warn(`Failed to parse .tsx metadata for ${tileset.source}`)
+      let imagePathFromMetadata: string | null = null
+
+      try {
+        const tilesetPath = `${this.assetsPath}${tileset.source.replace(/\\/g, '/')}`
+        const meta = await this.loadExternalTilesetMetadata(tilesetPath)
+        if (meta) {
+          finalTileWidth = meta.tilewidth || finalTileWidth
+          finalTileHeight = meta.tileheight || finalTileHeight
+          finalColumns = meta.columns || finalColumns
+          imagePathFromMetadata = meta.imageSource
         }
+      } catch {
+        // ignore and fall back
       }
+
+      // Fallback: if metadata couldn't be read, use old heuristic (.tsx -> .png)
+      const fallbackImagePath = tileset.source
+        .replace(/\\/g, '/')
+        .replace(/\.(tsx|xml)$/i, '.png')
+
+      const rawImagePath = imagePathFromMetadata || fallbackImagePath
+
+      // Normalize and ensure absolute
+      let fullPath = rawImagePath.replace(/\\/g, '/').replace(/^\/+/, '')
+      // If the XML returned something like "wardrobe2.png" it lives next to the tileset file.
+      if (!rawImagePath.includes('/')) {
+        const dir = tileset.source.replace(/\\/g, '/').split('/').slice(0, -1).join('/')
+        fullPath = dir ? `${dir}/${rawImagePath}` : rawImagePath
+      }
+
+      const image = await this.loadImage(`${this.assetsPath}${fullPath}`)
+      finalColumns = finalColumns || Math.floor(image.width / finalTileWidth) || 1
 
       return {
         image,
@@ -83,31 +97,56 @@ export class TilemapRenderer {
     throw new Error(`Tileset has neither 'source' nor 'image' property`)
   }
 
-  private async loadTsxMetadata(tsxPath: string): Promise<{ tilewidth: number; tileheight: number; columns: number } | null> {
+  private async loadExternalTilesetMetadata(
+    tilesetPath: string
+  ): Promise<{ tilewidth: number; tileheight: number; columns: number; imageSource: string } | null> {
     try {
-      const response = await fetch(tsxPath)
+      const response = await fetch(tilesetPath)
       if (!response.ok) return null
 
+      const contentType = response.headers.get('content-type') || ''
       const text = await response.text()
-      
-      // Parse XML to extract tilewidth, tileheight, columns
+
+      // Guard against SPA HTML fallback responses
+      if (
+        contentType.includes('text/html') ||
+        /^\s*<!doctype html/i.test(text) ||
+        /^\s*<html/i.test(text) ||
+        /<div\s+id=["']root["']/.test(text)
+      ) {
+        console.warn(`External tileset request returned HTML instead of XML: ${tilesetPath}`, {
+          contentType,
+          finalUrl: response.url,
+          preview: text.substring(0, 140),
+        })
+        return null
+      }
+
+      // Extract required attributes in a tolerant way (works for both .xml and .tsx tilesets)
       const tilewidthMatch = text.match(/tilewidth="(\d+)"/)
       const tileheightMatch = text.match(/tileheight="(\d+)"/)
       const columnsMatch = text.match(/columns="(\d+)"/)
+      const imageSourceMatch = text.match(/<image[^>]*\ssource="([^"]+)"/)
 
-      if (tilewidthMatch && tileheightMatch) {
-        return {
-          tilewidth: parseInt(tilewidthMatch[1]),
-          tileheight: parseInt(tileheightMatch[1]),
-          columns: columnsMatch ? parseInt(columnsMatch[1]) : 1,
-        }
+      if (!imageSourceMatch) return null
+
+      return {
+        tilewidth: tilewidthMatch ? parseInt(tilewidthMatch[1], 10) : 0,
+        tileheight: tileheightMatch ? parseInt(tileheightMatch[1], 10) : 0,
+        columns: columnsMatch ? parseInt(columnsMatch[1], 10) : 1,
+        imageSource: imageSourceMatch[1],
       }
-
-      return null
     } catch (error) {
-      console.warn(`Error loading .tsx metadata from ${tsxPath}:`, error)
+      console.warn(`Error loading external tileset metadata from ${tilesetPath}:`, error)
       return null
     }
+  }
+
+  private async loadTsxMetadata(tsxPath: string): Promise<{ tilewidth: number; tileheight: number; columns: number } | null> {
+    // Backwards compatibility (older call sites). Delegate to the new loader.
+    const meta = await this.loadExternalTilesetMetadata(tsxPath)
+    if (!meta) return null
+    return { tilewidth: meta.tilewidth, tileheight: meta.tileheight, columns: meta.columns }
   }
 
   private loadImage(src: string): Promise<HTMLImageElement> {
