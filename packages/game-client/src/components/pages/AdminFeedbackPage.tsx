@@ -77,24 +77,20 @@ export default function AdminFeedbackPage() {
         return
       }
 
-      // 1) Raw feedback answers (existing table)
-      let endpoint = '/api/game/admin/feedback/all'
-      if (viewMode === 'scenario' && filterScenario !== 'all') {
-        endpoint = `/api/game/admin/feedback/scenario/${filterScenario}`
-      }
-
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      // 1) Raw feedback answers (Firebase-backed; persistent)
+      const rawResp = await fetch(`${API_URL}/api/game/admin/analytics/raw?type=feedbackAnswers`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        setFeedbackData(data.feedback || [])
+      if (rawResp.ok) {
+        const raw = await rawResp.json()
+        const rows = (raw.rows || []) as FeedbackAnswer[]
+        setFeedbackData(rows)
       } else {
-        console.error('Failed to fetch feedback')
+        console.error('Failed to fetch raw feedback answers')
       }
 
       // 2) Aggregated analytics (new)
@@ -210,8 +206,23 @@ export default function AdminFeedbackPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="text-4xl font-pixel text-primary">📊 ADMIN METRICS</h1>
-          <p className="text-foreground/70">Global + per-scenario + raw data export</p>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-4xl font-pixel text-primary">📊 ADMIN METRICS</h1>
+              <p className="text-foreground/70">Global + per-scenario + raw data export</p>
+            </div>
+
+            <Button
+              variant="outline"
+              className="border-slate-700 text-slate-200 hover:bg-slate-900"
+              onClick={() => {
+                // safest: hard navigation to root/dashboard so it works even if router state is lost
+                window.location.assign('/')
+              }}
+            >
+              Back to Dashboard
+            </Button>
+          </div>
         </div>
 
         {/* Analytics Summary */}

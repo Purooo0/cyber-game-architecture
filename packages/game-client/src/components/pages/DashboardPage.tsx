@@ -53,13 +53,22 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
     'phishing-scenario': 4,  // Mission 1: 4 endings (report, delete, phishing_form, classroom_teacher)
     'cafe-scenario': 2,       // Mission 2: 2 endings (evil_twin, cafe_corner_safe)
   }
-  
-  // ✅ Memoize admin check to prevent unnecessary re-renders
+
+  // Fetch data from backend
+  const profileData = useUserProfile(token)
+  const statsData = useUserStats(token)
+  const { badges, loading: badgesLoading } = useUserBadges(token)
+  const { missions: allMissions, completedCount: completedMissions, loading: missionsLoading } = useAvailableMissions(token)  // ✅ Pass token!
+  const { leaderboard, loading: leaderboardLoading } = useLeaderboard(3)
+  const { endingTracking, loading: endingTrackingLoading } = useUserEndingTracking(token)  // ✅ Fetch ending tracking
+
+  // ✅ Stable admin check: prefer backend profile email, fallback to prop user
   const isAdmin = useMemo(() => {
-    const result = user?.email === 'admin26@gmail.com'
-    console.log('[DashboardPage] isAdmin check:', { userEmail: user?.email, isAdmin: result })
+    const email = profileData.profile?.email || user?.email
+    const result = email === 'admin26@gmail.com'
+    console.log('[DashboardPage] isAdmin check:', { email, isAdmin: result })
     return result
-  }, [user?.email])
+  }, [profileData.profile?.email, user?.email])
   
   // Sync token from localStorage on mount and when it changes
   useEffect(() => {
@@ -73,19 +82,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
   const markAllAsRead = () => {
     // Notification feature removed
   }
-
-  // Fetch data from backend
-  const profileData = useUserProfile(token)
-  const statsData = useUserStats(token)
-  const { badges, loading: badgesLoading } = useUserBadges(token)
-  const { missions: allMissions, completedCount: completedMissions, loading: missionsLoading } = useAvailableMissions(token)  // ✅ Pass token!
-  const { leaderboard, loading: leaderboardLoading } = useLeaderboard(3)
-  const { endingTracking, loading: endingTrackingLoading } = useUserEndingTracking(token)  // ✅ Fetch ending tracking
-
-  // ✅ Filter out mission 3 (social-challenge) - only show mission 1 & 2
-  const missions = useMemo(() => {
-    return allMissions.filter(m => m.id !== 'social-challenge')
-  }, [allMissions])
 
   // Extract refetch functions
   const { profile, refetch: refetchProfile } = profileData
@@ -111,6 +107,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, []) // Empty dependency array - event listener set up once
+
+  // ✅ Filter out mission 3 (social-challenge) - only show mission 1 & 2
+  const missions = useMemo(() => {
+    return allMissions.filter(m => m.id !== 'social-challenge')
+  }, [allMissions])
 
   // Fallback data if loading
   const playerData = {

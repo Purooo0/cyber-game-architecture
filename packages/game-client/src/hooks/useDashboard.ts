@@ -469,19 +469,18 @@ export const useUserEndingTracking = (token?: string | null) => {
         }
 
         if (!response.ok) {
-          // Don't throw: server might return HTML error pages that break JSON parsing in callers.
+          // ✅ Do not clear existing state on transient failures.
           const body = await response.text().catch(() => '')
           console.error('[useUserEndingTracking] Non-ok response body (first 200 chars):', body.substring(0, 200))
-          setEndingTracking({})
           setError(`Failed to fetch ending tracking: ${response.status}`)
           return
         }
 
         const contentType = response.headers.get('content-type') || ''
         if (!contentType.includes('application/json')) {
+          // ✅ Do not clear existing state on unexpected response.
           const body = await response.text().catch(() => '')
           console.error('[useUserEndingTracking] Unexpected content-type:', contentType, 'body (first 200):', body.substring(0, 200))
-          setEndingTracking({})
           setError('Unexpected response format')
           return
         }
@@ -494,7 +493,7 @@ export const useUserEndingTracking = (token?: string | null) => {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
         console.error('[useUserEndingTracking] Error fetching ending tracking:', errorMsg)
         setError(errorMsg)
-        setEndingTracking({})
+        // ✅ keep previous endingTracking
       } finally {
         setLoading(false)
       }
