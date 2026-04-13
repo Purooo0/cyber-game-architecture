@@ -125,6 +125,32 @@ export const finishGame = async (req, res) => {
     // ✅ XP behavior stays as-is: XP is always awarded based on sessionScore
     const xpToAward = Math.round(sessionScore / 10)
 
+    // ✅ Normalize legacy scenario ids so dashboard tracking keys stay consistent
+    // Mission 2 previously used `security-wifi` in some places; dashboard expects `cafe-scenario`.
+    const normalizedScenarioId = session.scenarioId === 'security-wifi' ? 'cafe-scenario'
+      : session.scenarioId === 'phishing' ? 'phishing-scenario'
+      : session.scenarioId
+
+    // ✅ Normalize legacy ending ids to canonical ids expected by ending tracking
+    const normalizedEndingId = (() => {
+      if (!endingId) return endingId
+      const map = {
+        // possible variants seen in older client code / content
+        reported: 'reported_phishing',
+        report: 'reported_phishing',
+        deleted: 'deleted_phishing',
+        delete: 'deleted_phishing',
+        deleted_email: 'deleted_phishing',
+        delete_email: 'deleted_phishing',
+        teacher: 'teacher_phishing_confirmed',
+        classroom_teacher: 'teacher_phishing_confirmed',
+        clicked: 'clicked_malicious_link',
+        click: 'clicked_malicious_link',
+        phishing_form: 'clicked_malicious_link',
+      }
+      return map[endingId] || endingId
+    })()
+
     try {
       const userRef = db.ref(`users/${userId}`)
       const snapshot = await userRef.once('value')
@@ -132,14 +158,16 @@ export const finishGame = async (req, res) => {
 
       if (user) {
         const completedEndings = user.completedEndings || {}
-        const completedForScenario = completedEndings[session.scenarioId] || []
+        const completedForScenario = completedEndings[normalizedScenarioId] || []
 
-        isFirstEndingCompletion = endingId ? !completedForScenario.includes(endingId) : true
+        isFirstEndingCompletion = normalizedEndingId ? !completedForScenario.includes(normalizedEndingId) : true
         scoreToAward = isFirstEndingCompletion ? sessionScore : 0
 
         console.log('[GameServer] 📊 Ending-Level Scoring Check:', {
-          scenarioId: session.scenarioId,
-          endingId: endingId || 'unknown-ending',
+          scenarioId: normalizedScenarioId,
+          rawScenarioId: session.scenarioId,
+          endingId: normalizedEndingId || 'unknown-ending',
+          rawEndingId: endingId || 'unknown-ending',
           completedEndings: completedForScenario,
           isFirstEndingCompletion,
           scoreToAward,
@@ -148,22 +176,30 @@ export const finishGame = async (req, res) => {
         })
 
         // ✅ Persist completion ONLY when first time and we have endingId
-        if (isFirstEndingCompletion && endingId) {
-          completedForScenario.push(endingId)
-          completedEndings[session.scenarioId] = completedForScenario
+        if (isFirstEndingCompletion && normalizedEndingId) {
+          completedForScenario.push(normalizedEndingId)
+          completedEndings[normalizedScenarioId] = completedForScenario
 
           // ✅ Also mark scenario as completed for the first time (used by dashboard)
           const completedMissionsByScenario = user.completedMissionsByScenario || {}
-          const alreadyCounted = !!completedMissionsByScenario[session.scenarioId]
+          const alreadyCounted = !!completedMissionsByScenario[normalizedScenarioId]
           const completedMissions = Number(user.completedMissions || 0)
 
           const updates = {
             completedEndings,
             completedMissionsByScenario: {
               ...completedMissionsByScenario,
-              [session.scenarioId]: true,
+              [normalizedScenarioId]: true,
             },
             completedMissions: alreadyCounted ? completedMissions : (completedMissions + 1),
+          }
+
+          // Optionally preserve legacy key so older dashboards still show completion
+          if (session.scenarioId === 'security-wifi') {
+            updates.completedMissionsByScenario = {
+              ...updates.completedMissionsByScenario,
+              'security-wifi': true,
+            }
           }
 
           await userRef.update(updates)
