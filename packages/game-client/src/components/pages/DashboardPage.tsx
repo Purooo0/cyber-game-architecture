@@ -356,18 +356,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
                   const allEndingsComplete = totalEndings > 0 && completedEndings === totalEndings
                   const hasAnyEnding = completedEndings > 0
                   
+                  // ✅ Derive completion status from ending tracking to match X/Y and button state
+                  const derivedCompleted = hasAnyEnding
+                  
                   return (
                     <Card
                       key={mission.id}
                       className={`bg-card border-2 p-6 relative overflow-hidden transition-all hover:scale-105 group ${
                         mission.locked 
                           ? 'border-foreground/20 opacity-60' 
-                          : mission.completed
+                          : derivedCompleted
                           ? 'border-primary/30 hover:border-primary/50'
                           : 'border-secondary/30 hover:border-secondary/50'
                       }`}
                     >
-                      {!mission.locked && !mission.completed && (
+                      {!mission.locked && !derivedCompleted && (
                         <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                       )}
                       
@@ -375,12 +378,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
                         <div className="flex items-start justify-between">
                           <div className={`w-12 h-12 rounded flex items-center justify-center ${
                             mission.locked ? 'bg-foreground/10 border border-foreground/20' :
-                            mission.completed ? 'bg-primary/20 border-2 border-primary' :
+                            derivedCompleted ? 'bg-primary/20 border-2 border-primary' :
                             'bg-secondary/20 border-2 border-secondary'
                           }`}>
                             {mission.locked ? (
                               <Lock className="w-6 h-6 text-foreground/40" />
-                            ) : mission.completed ? (
+                            ) : derivedCompleted ? (
                               <CheckCircle2 className="w-6 h-6 text-primary" />
                             ) : (
                               <Shield className="w-6 h-6 text-secondary" />
@@ -408,7 +411,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
                               ? 'bg-foreground/10 text-foreground/40 cursor-not-allowed'
                               : allEndingsComplete
                               ? 'bg-yellow-500/20 text-yellow-500 border-2 border-yellow-500 hover:bg-yellow-500 hover:text-yellow-950'
-                              : (mission.completed || hasAnyEnding)
+                              : (derivedCompleted || hasAnyEnding)
                               ? 'bg-primary/20 text-primary border-2 border-primary hover:bg-primary hover:text-primary-foreground'
                               : 'bg-secondary hover:bg-secondary/90 text-secondary-foreground'
                           }`}
@@ -425,7 +428,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
                               <RotateCw className="w-4 h-4 mr-2" />
                               RETRY
                             </>
-                          ) : (mission.completed || hasAnyEnding) ? (
+                          ) : (derivedCompleted || hasAnyEnding) ? (
                             <>
                               <CheckCircle2 className="w-4 h-4 mr-2" />
                               REPLAY
