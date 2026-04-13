@@ -94,6 +94,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
     refetchStats()
   }, []) // Empty dependency array - run only on mount
 
+  // ✅ Always refresh ending tracking whenever dashboard is shown (handles navigation from mission overlays)
+  useEffect(() => {
+    console.log('[DashboardPage] Refresh ending tracking on dashboard show')
+    refetchEndingTracking()
+  }, [token])
+
   // Listen for visibility changes
   useEffect(() => {
     const handleVisibilityChange = () => {
