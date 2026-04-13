@@ -438,7 +438,7 @@ export function useUserEndingTracking(token?: string | null) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchEndingTracking = useCallback(async () => {
+  const fetchEndingTracking = useCallback(async (options?: { force?: boolean }) => {
     if (!token) {
       console.log('[useUserEndingTracking] No token provided, skipping fetch')
       setEndingTracking({})
@@ -447,65 +447,113 @@ export function useUserEndingTracking(token?: string | null) {
       return
     }
 
-    try {
-      console.log('[useUserEndingTracking] Fetching with token:', token.substring(0, 20) + '...')
-      const response = await fetch(`${API_URL}/api/game/user/endings`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+    const force = !!options?.force
 
-      console.log('[useUserEndingTracking] Response status:', response.status)
+    const now = Date.now()
+    const cache = requestCacheRef.endingTracking
 
-      if (response.status === 401) {
-        console.log('[useUserEndingTracking] 401 Unauthorized - clearing token')
-        localStorage.removeItem('authToken')
-        setEndingTracking({})
+    // ✅ Use cache only when not forced
+    if (!force && cache.data && now - cache.timestamp < CACHE_DURATION && !cache.loading) {
+      console.log('[useUserEndingTracking] ✅ Using cached endingTracking (still fresh)')
+      setEndingTracking(cache.data)
+      setLoading(false)
+      return
+    }
+
+    // If already loading, wait for pending request
+    if (cache.loading && cache.promise) {
+      console.log('[useUserEndingTracking] ⏳ Request already in progress, waiting...')
+      try {
+        const result = await cache.promise
+        if (result) setEndingTracking(result)
         setError(null)
         setLoading(false)
-        return
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error')
+        setLoading(false)
       }
-
-      if (!response.ok) {
-        // ✅ Do not clear existing state on transient failures.
-        const body = await response.text().catch(() => '')
-        console.error('[useUserEndingTracking] Non-ok response body (first 200 chars):', body.substring(0, 200))
-        setError(`Failed to fetch ending tracking: ${response.status}`)
-        return
-      }
-
-      const contentType = response.headers.get('content-type') || ''
-      if (!contentType.includes('application/json')) {
-        // ✅ Do not clear existing state on unexpected response.
-        const body = await response.text().catch(() => '')
-        console.error('[useUserEndingTracking] Unexpected content-type:', contentType, 'body (first 200):', body.substring(0, 200))
-        setError('Unexpected response format')
-        return
-      }
-
-      const data = await response.json()
-      console.log('[useUserEndingTracking] Ending tracking data:', data)
-      setEndingTracking(data.endingTracking || {})
-      setError(null)
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error'
-      console.error('[useUserEndingTracking] Error fetching ending tracking:', errorMsg)
-      setError(errorMsg)
-      // ✅ keep previous endingTracking
-    } finally {
-      setLoading(false)
+      return
     }
+
+    console.log('[useUserEndingTracking] 🔄 Fetching ending tracking', { force })
+    cache.loading = true
+    cache.promise = (async () => {
+      try {
+        console.log('[useUserEndingTracking] Fetching with token:', token.substring(0, 20) + '...')
+        const response = await fetch(`${API_URL}/api/game/user/endings`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+
+        console.log('[useUserEndingTracking] Response status:', response.status)
+
+        if (response.status === 401) {
+          console.log('[useUserEndingTracking] 401 Unauthorized - clearing token')
+          localStorage.removeItem('authToken')
+          cache.data = null
+          cache.timestamp = 0
+          cache.loading = false
+          cache.promise = null
+          setEndingTracking({})
+          setError(null)
+          setLoading(false)
+          return {}
+        }
+
+        if (!response.ok) {
+          // ✅ Do not clear existing state on transient failures.
+          const body = await response.text().catch(() => '')
+          console.error('[useUserEndingTracking] Non-ok response body (first 200 chars):', body.substring(0, 200))
+          setError(`Failed to fetch ending tracking: ${response.status}`)
+          return cache.data || endingTracking
+        }
+
+        const contentType = response.headers.get('content-type') || ''
+        if (!contentType.includes('application/json')) {
+          // ✅ Do not clear existing state on unexpected response.
+          const body = await response.text().catch(() => '')
+          console.error('[useUserEndingTracking] Unexpected content-type:', contentType, 'body (first 200):', body.substring(0, 200))
+          setError('Unexpected response format')
+          return cache.data || endingTracking
+        }
+
+        const data = await response.json()
+        console.log('[useUserEndingTracking] Ending tracking data:', data)
+
+        const next = data.endingTracking || {}
+        cache.data = next
+        cache.timestamp = Date.now()
+        cache.loading = false
+        cache.promise = null
+        setEndingTracking(next)
+        setError(null)
+        return next
+      } catch (err) {
+        cache.loading = false
+        cache.promise = null
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+        console.error('[useUserEndingTracking] Error fetching ending tracking:', errorMsg)
+        setError(errorMsg)
+        // ✅ keep previous endingTracking
+        return cache.data || endingTracking
+      } finally {
+        setLoading(false)
+      }
+    })()
+
+    return await cache.promise
   }, [token])
 
   useEffect(() => {
-    fetchEndingTracking()
+    fetchEndingTracking({ force: false })
   }, [fetchEndingTracking])
 
   return {
     endingTracking,
     isLoading: loading,
     error,
-    refetch: fetchEndingTracking,
+    refetch: () => fetchEndingTracking({ force: true }),
   }
 }

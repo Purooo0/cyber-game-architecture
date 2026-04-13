@@ -1532,15 +1532,38 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
       {/* Mission Success Overlay */}
       {missionResult === 'success' && (
         <>
-          {/* ✅ Ending loading overlay (prevents flicker/glitch) */}
+          {/* ✅ Ending loading overlay (match Mission 2 style) */}
           {(!endingAwardReady || isFinishingGame) ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center">
               <div className="absolute inset-0 bg-background/90 backdrop-blur-md" />
+              
               <Card className="relative z-10 bg-card/95 backdrop-blur-sm border-4 border-primary p-10 w-full max-w-lg animate-in zoom-in-95 duration-300">
-                <div className="text-center space-y-4">
-                  <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-                  <p className="font-pixel text-xs text-foreground/70">CALCULATING RESULTS...</p>
-                  <p className="text-xs text-foreground/50">Saving your progress and syncing score...</p>
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse" />
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse" />
+
+                <div className="text-center space-y-6 relative">
+                  <div className="flex justify-center">
+                    <div className="w-24 h-24 bg-primary/20 border-4 border-primary rounded-full flex items-center justify-center animate-pulse">
+                      <CheckCircle2 className="w-16 h-16 text-primary" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h2 className="font-pixel text-3xl text-primary mb-3 animate-pulse">
+                      MISI
+                      <br />
+                      BERHASIL
+                    </h2>
+                    <p className="text-foreground/70 text-sm">
+                      Menghitung hasil dan menyimpan progress...
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 py-4">
+                    <div className="col-span-3 text-center text-foreground/70 text-sm">
+                      Menghitung hasil...
+                    </div>
+                  </div>
                 </div>
               </Card>
             </div>
@@ -1658,15 +1681,38 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
       {/* Mission Failed Overlay */}
       {missionResult === 'failed' && (
         <>
-          {/* ✅ Ending loading overlay (prevents flicker/glitch) */}
+          {/* ✅ Ending loading overlay (match Mission 2 style) */}
           {(!endingAwardReady || isFinishingGame) ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center">
               <div className="absolute inset-0 bg-background/90 backdrop-blur-md" />
+
               <Card className="relative z-10 bg-card/95 backdrop-blur-sm border-4 border-destructive p-10 w-full max-w-lg animate-in zoom-in-95 duration-300">
-                <div className="text-center space-y-4">
-                  <div className="w-16 h-16 border-4 border-destructive border-t-transparent rounded-full animate-spin mx-auto" />
-                  <p className="font-pixel text-xs text-foreground/70">CALCULATING RESULTS...</p>
-                  <p className="text-xs text-foreground/50">Saving your progress...</p>
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-destructive to-transparent animate-pulse" />
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-destructive to-transparent animate-pulse" />
+
+                <div className="text-center space-y-6 relative">
+                  <div className="flex justify-center">
+                    <div className="w-24 h-24 bg-destructive/20 border-4 border-destructive rounded-full flex items-center justify-center">
+                      <XCircle className="w-16 h-16 text-destructive" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h2 className="font-pixel text-3xl text-destructive mb-3">
+                      SIMULASI
+                      <br />
+                      GAGAL
+                    </h2>
+                    <p className="text-foreground/70 text-sm mb-4">
+                      Menghitung hasil dan menyimpan progress...
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 py-2">
+                    <div className="col-span-2 text-center text-foreground/70 text-sm">
+                      Menghitung hasil...
+                    </div>
+                  </div>
                 </div>
               </Card>
             </div>
@@ -1675,75 +1721,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
               <div className="absolute inset-0 bg-background/90 backdrop-blur-md" />
               
               <Card className="relative z-10 bg-card/95 backdrop-blur-sm border-4 border-destructive p-10 w-full max-w-lg animate-in zoom-in-95 duration-300">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-destructive to-transparent animate-pulse" />
-                
-                <div className="text-center space-y-6">
-                  {/* Failed Icon */}
-                  <div className="flex justify-center">
-                    <div className="w-24 h-24 bg-destructive/20 border-4 border-destructive rounded-full flex items-center justify-center">
-                      <XCircle className="w-16 h-16 text-destructive" />
-                    </div>
-                  </div>
-
-                  {/* Title */}
-                  <div>
-                    <h2 className="font-pixel text-3xl text-destructive mb-3">
-                      SIMULATION
-                      <br />
-                      FAILED
-                    </h2>
-                    <p className="text-foreground/70 text-sm mb-4">
-                      You clicked on the malicious link and compromised your security.
-                    </p>
-                  </div>
-
-                  {/* Score/XP Display */}
-                  <div className={`grid ${endingScoreAwarded !== 0 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 py-4 bg-destructive/5 rounded-lg p-4 border border-destructive/20`}>
-                    {endingScoreAwarded !== 0 && (
-                      <div className="space-y-2">
-                        <Star className="w-6 h-6 text-yellow-400 mx-auto" />
-                        <p className="font-pixel text-2xl text-foreground">{endingScoreAwarded}</p>
-                        <p className="text-xs text-foreground/60">Score Change</p>
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <Zap className="w-6 h-6 text-secondary mx-auto" />
-                      <p className="font-pixel text-2xl text-secondary">{endingXpAwarded}</p>
-                      <p className="text-xs text-foreground/60">XP Change</p>
-                    </div>
-                  </div>
-
-                  {/* Learning Tip Card */}
-                  <Card className="bg-accent/10 border-2 border-accent/50 p-4 text-left">
-                    <div className="flex gap-3">
-                      <Shield className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-pixel text-xs text-accent mb-2">SECURITY TIP</p>
-                        <p className="text-sm text-foreground/80 leading-relaxed">
-                          Always verify sender emails before clicking links. Legitimate banks never ask for passwords via email.
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-3 pt-4">
-                    <Button
-                      variant="outline"
-                      className="w-full border-2 border-foreground/30 text-foreground hover:bg-foreground/10 font-pixel text-sm h-12"
-                      onClick={() => onNavigate?.('dashboard')}
-                    >
-                      DASHBOARD
-                    </Button>
-                    <Button
-                      className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground font-pixel text-sm h-12"
-                      onClick={handleRetry}
-                    >
-                      <RotateCcw className="w-5 h-5 mr-2" />
-                      RETRY
-                    </Button>
-                  </div>
-                </div>
+                {/* ...existing code... */}
               </Card>
             </div>
           )}
