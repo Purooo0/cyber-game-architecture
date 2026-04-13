@@ -197,7 +197,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
             </button>
 
             {/* Player Info & Actions */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               {/* Player Avatar & Info */}
               <div className="hidden md:flex items-center gap-3 bg-card border-2 border-primary/30 px-4 py-2 rounded">
                 <div className="w-10 h-10 bg-secondary/20 border-2 border-secondary rounded flex items-center justify-center">
@@ -209,33 +209,32 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="relative">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onNavigate?.('settings')}
-                >
-                  <Settings className="w-5 h-5 text-foreground" />
-                </Button>
-              </div>
-            </div>
-
-            {/* ✅ Admin Feedback Link - Only for admin */}
-            {isAdmin && (
-              <Button 
-                variant="ghost" 
+              {/* Settings */}
+              <Button
+                variant="ghost"
                 size="icon"
-                onClick={() => onNavigate?.('admin-feedback')}
-                title="View player feedback responses (Admin Only)"
+                onClick={() => onNavigate?.('settings')}
               >
-                <BarChart3 className="w-5 h-5 text-accent animate-pulse" />
+                <Settings className="w-5 h-5 text-foreground" />
               </Button>
-            )}
 
-            <Button variant="ghost" size="icon" onClick={() => { onLogout?.(); onNavigate?.('landing'); }}>
-              <LogOut className="w-5 h-5 text-foreground" />
-            </Button>
+              {/* ✅ Admin Feedback Link - Only for admin */}
+              {isAdmin && (
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => onNavigate?.('admin-feedback')}
+                  title="View player feedback responses (Admin Only)"
+                >
+                  <BarChart3 className="w-5 h-5 text-accent animate-pulse" />
+                </Button>
+              )}
+
+              {/* Exit */}
+              <Button variant="ghost" size="icon" onClick={() => { onLogout?.(); onNavigate?.('landing'); }}>
+                <LogOut className="w-5 h-5 text-foreground" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>
