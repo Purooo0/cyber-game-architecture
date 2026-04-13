@@ -433,74 +433,79 @@ export const useLeaderboard = (limit: number = 10) => {
  * Hook untuk fetch user's ending tracking per mission
  * Shows which endings player has completed for each mission
  */
-export const useUserEndingTracking = (token?: string | null) => {
+export function useUserEndingTracking(token?: string | null) {
   const [endingTracking, setEndingTracking] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchEndingTracking = async () => {
-      if (!token) {
-        console.log('[useUserEndingTracking] No token provided, skipping fetch')
+  const fetchEndingTracking = useCallback(async () => {
+    if (!token) {
+      console.log('[useUserEndingTracking] No token provided, skipping fetch')
+      setEndingTracking({})
+      setError(null)
+      setLoading(false)
+      return
+    }
+
+    try {
+      console.log('[useUserEndingTracking] Fetching with token:', token.substring(0, 20) + '...')
+      const response = await fetch(`${API_URL}/api/game/user/endings`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      console.log('[useUserEndingTracking] Response status:', response.status)
+
+      if (response.status === 401) {
+        console.log('[useUserEndingTracking] 401 Unauthorized - clearing token')
+        localStorage.removeItem('authToken')
         setEndingTracking({})
         setError(null)
         setLoading(false)
         return
       }
 
-      try {
-        console.log('[useUserEndingTracking] Fetching with token:', token.substring(0, 20) + '...')
-        const response = await fetch(`${API_URL}/api/game/user/endings`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        })
-
-        console.log('[useUserEndingTracking] Response status:', response.status)
-
-        if (response.status === 401) {
-          console.log('[useUserEndingTracking] 401 Unauthorized - clearing token')
-          localStorage.removeItem('authToken')
-          setEndingTracking({})
-          setError(null)
-          setLoading(false)
-          return
-        }
-
-        if (!response.ok) {
-          // ✅ Do not clear existing state on transient failures.
-          const body = await response.text().catch(() => '')
-          console.error('[useUserEndingTracking] Non-ok response body (first 200 chars):', body.substring(0, 200))
-          setError(`Failed to fetch ending tracking: ${response.status}`)
-          return
-        }
-
-        const contentType = response.headers.get('content-type') || ''
-        if (!contentType.includes('application/json')) {
-          // ✅ Do not clear existing state on unexpected response.
-          const body = await response.text().catch(() => '')
-          console.error('[useUserEndingTracking] Unexpected content-type:', contentType, 'body (first 200):', body.substring(0, 200))
-          setError('Unexpected response format')
-          return
-        }
-
-        const data = await response.json()
-        console.log('[useUserEndingTracking] Ending tracking data:', data)
-        setEndingTracking(data.endingTracking || {})
-        setError(null)
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Unknown error'
-        console.error('[useUserEndingTracking] Error fetching ending tracking:', errorMsg)
-        setError(errorMsg)
-        // ✅ keep previous endingTracking
-      } finally {
-        setLoading(false)
+      if (!response.ok) {
+        // ✅ Do not clear existing state on transient failures.
+        const body = await response.text().catch(() => '')
+        console.error('[useUserEndingTracking] Non-ok response body (first 200 chars):', body.substring(0, 200))
+        setError(`Failed to fetch ending tracking: ${response.status}`)
+        return
       }
-    }
 
-    fetchEndingTracking()
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        // ✅ Do not clear existing state on unexpected response.
+        const body = await response.text().catch(() => '')
+        console.error('[useUserEndingTracking] Unexpected content-type:', contentType, 'body (first 200):', body.substring(0, 200))
+        setError('Unexpected response format')
+        return
+      }
+
+      const data = await response.json()
+      console.log('[useUserEndingTracking] Ending tracking data:', data)
+      setEndingTracking(data.endingTracking || {})
+      setError(null)
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+      console.error('[useUserEndingTracking] Error fetching ending tracking:', errorMsg)
+      setError(errorMsg)
+      // ✅ keep previous endingTracking
+    } finally {
+      setLoading(false)
+    }
   }, [token])
 
-  return { endingTracking, loading, error }
+  useEffect(() => {
+    fetchEndingTracking()
+  }, [fetchEndingTracking])
+
+  return {
+    endingTracking,
+    isLoading: loading,
+    error,
+    refetch: fetchEndingTracking,
+  }
 }

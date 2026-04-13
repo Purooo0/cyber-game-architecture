@@ -60,7 +60,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
   const { badges, loading: badgesLoading } = useUserBadges(token)
   const { missions: allMissions, completedCount: completedMissions, loading: missionsLoading } = useAvailableMissions(token)  // ✅ Pass token!
   const { leaderboard, loading: leaderboardLoading } = useLeaderboard(3)
-  const { endingTracking, loading: endingTrackingLoading } = useUserEndingTracking(token)  // ✅ Fetch ending tracking
+  const { endingTracking, isLoading: endingTrackingLoading, refetch: refetchEndingTracking } = useUserEndingTracking(token)  // ✅ Fetch ending tracking
 
   // ✅ Stable admin check: prefer backend profile email, fallback to prop user
   const isAdmin = useMemo(() => {
@@ -101,6 +101,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
         console.log('[DashboardPage] Page became visible - refetching data')
         refetchProfile()
         refetchStats()
+        refetchEndingTracking()
       }
     }
 
@@ -123,7 +124,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
     rank: profile?.rank || 'Rookie',
     badgesEarned: stats?.badgesEarned || profile?.badgesEarned || 0,
     completedMissions: stats?.completedMissions || completedMissions || 0,
-    totalMissions: stats?.totalMissions || missions.length || 15
+    totalMissions: stats?.totalMissions || missions.length || 15,
   }
 
   console.log('[DashboardPage] playerData:', playerData);
@@ -141,10 +142,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
 
   const getDifficultyColor = (difficulty: string) => {
     switch(difficulty) {
-      case 'Easy': return 'text-primary border-primary bg-primary/10'
-      case 'Medium': return 'text-yellow-400 border-yellow-400 bg-yellow-400/10'
-      case 'Hard': return 'text-destructive border-destructive bg-destructive/10'
-      default: return 'text-foreground/50 border-foreground/20'
+      case 'Easy':
+        return 'text-primary border-primary bg-primary/10'
+      case 'Medium':
+        return 'text-yellow-400 border-yellow-400 bg-yellow-400/10'
+      case 'Hard':
+        return 'text-destructive border-destructive bg-destructive/10'
+      default:
+        return 'text-foreground/50 border-foreground/20'
     }
   }
 
@@ -181,7 +186,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
                 <Shield className="w-6 h-6 text-primary-foreground" />
               </div>
               <h1 className="font-pixel text-primary text-sm md:text-base tracking-wider">
-                CYBERQUEST
+                CYBERQUESTER
               </h1>
             </button>
 
@@ -208,23 +213,23 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
                   <Settings className="w-5 h-5 text-foreground" />
                 </Button>
               </div>
-
-              {/* ✅ Admin Feedback Link - Only for admin */}
-              {isAdmin && (
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => onNavigate?.('admin-feedback')}
-                  title="View player feedback responses (Admin Only)"
-                >
-                  <BarChart3 className="w-5 h-5 text-accent animate-pulse" />
-                </Button>
-              )}
-
-              <Button variant="ghost" size="icon" onClick={() => { onLogout?.(); onNavigate?.('landing'); }}>
-                <LogOut className="w-5 h-5 text-foreground" />
-              </Button>
             </div>
+
+            {/* ✅ Admin Feedback Link - Only for admin */}
+            {isAdmin && (
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => onNavigate?.('admin-feedback')}
+                title="View player feedback responses (Admin Only)"
+              >
+                <BarChart3 className="w-5 h-5 text-accent animate-pulse" />
+              </Button>
+            )}
+
+            <Button variant="ghost" size="icon" onClick={() => { onLogout?.(); onNavigate?.('landing'); }}>
+              <LogOut className="w-5 h-5 text-foreground" />
+            </Button>
           </div>
         </div>
       </header>
@@ -326,9 +331,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = React.memo(({
           {/* Mission Selection Section */}
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="font-pixel text-xl md:text-2xl text-secondary">
-                {'>> AVAILABLE MISSIONS'}
-              </h2>
+              <h2 className="font-pixel text-xl md:text-2xl text-secondary">{'>> AVAILABLE MISSIONS'}</h2>
               <Badge className="bg-secondary/20 text-secondary border-2 border-secondary font-pixel text-xs">
                 {playerData.completedMissions} / {playerData.totalMissions} COMPLETED
               </Badge>

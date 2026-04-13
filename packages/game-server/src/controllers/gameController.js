@@ -150,7 +150,22 @@ export const finishGame = async (req, res) => {
         if (isFirstEndingCompletion && endingId) {
           completedForScenario.push(endingId)
           completedEndings[session.scenarioId] = completedForScenario
-          await userRef.update({ completedEndings })
+
+          // ✅ Also mark scenario as completed for the first time (used by dashboard)
+          const completedMissionsByScenario = user.completedMissionsByScenario || {}
+          const alreadyCounted = !!completedMissionsByScenario[session.scenarioId]
+          const completedMissions = Number(user.completedMissions || 0)
+
+          const updates = {
+            completedEndings,
+            completedMissionsByScenario: {
+              ...completedMissionsByScenario,
+              [session.scenarioId]: true,
+            },
+            completedMissions: alreadyCounted ? completedMissions : (completedMissions + 1),
+          }
+
+          await userRef.update(updates)
         }
       } else {
         // If user not found, default to awarding score

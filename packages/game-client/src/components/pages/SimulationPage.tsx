@@ -915,10 +915,14 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     }
   }
 
+  // Track if finishGame award values have arrived (prevents ending UI flicker)
+  const [endingAwardReady, setEndingAwardReady] = useState(false)
+
   // Handle mission completion - send score to backend and refresh user stats
   useEffect(() => {
     if (missionResult === 'success' || missionResult === 'failed') {
       setIsFinishingGame(true)
+      setEndingAwardReady(false)
 
       const timer = setTimeout(async () => {
         const isSuccess = missionResult === 'success'
@@ -931,6 +935,9 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         const xpAwarded = result?.session?.xp
         if (typeof scoreAwarded === 'number') setEndingScoreAwarded(scoreAwarded)
         if (typeof xpAwarded === 'number') setEndingXpAwarded(xpAwarded)
+
+        // Mark award ready only after we have the server response
+        setEndingAwardReady(true)
 
         // Store updated user stats from backend response
         if (result?.data?.userStats) {
@@ -1525,190 +1532,222 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
       {/* Mission Success Overlay */}
       {missionResult === 'success' && (
         <>
-          {console.log('[🏁 ENDING UI] Rendering success ending with sessionScoreEarned:', sessionScoreEarned)}
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-background/90 backdrop-blur-md" />
-          
-          <Card className="relative z-10 bg-card/95 backdrop-blur-sm border-4 border-primary p-10 w-full max-w-lg animate-in zoom-in-95 duration-300">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse" />
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse" />
-            
-            {/* Sparkle effects */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              {[...Array(8)].map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute w-1 h-1 bg-primary animate-pulse"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                    animationDelay: `${Math.random() * 2}s`,
-                  }}
-                />
-              ))}
+          {/* ✅ Ending loading overlay (prevents flicker/glitch) */}
+          {(!endingAwardReady || isFinishingGame) ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-background/90 backdrop-blur-md" />
+              <Card className="relative z-10 bg-card/95 backdrop-blur-sm border-4 border-primary p-10 w-full max-w-lg animate-in zoom-in-95 duration-300">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="font-pixel text-xs text-foreground/70">CALCULATING RESULTS...</p>
+                  <p className="text-xs text-foreground/50">Saving your progress and syncing score...</p>
+                </div>
+              </Card>
             </div>
-
-            <div className="text-center space-y-6 relative">
-              {/* Success Icon */}
-              <div className="flex justify-center">
-                <div className="w-24 h-24 bg-primary/20 border-4 border-primary rounded-full flex items-center justify-center animate-pulse">
-                  <CheckCircle2 className="w-16 h-16 text-primary" />
+          ) : (
+            <>
+              {console.log('[🏁 ENDING UI] Rendering success ending with sessionScoreEarned:', sessionScoreEarned)}
+              <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-background/90 backdrop-blur-md" />
+              
+              <Card className="relative z-10 bg-card/95 backdrop-blur-sm border-4 border-primary p-10 w-full max-w-lg animate-in zoom-in-95 duration-300">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse" />
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse" />
+                
+                {/* Sparkle effects */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  {[...Array(8)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute w-1 h-1 bg-primary animate-pulse"
+                      style={{
+                        left: `${Math.random() * 100}%`,
+                        top: `${Math.random() * 100}%`,
+                        animationDelay: `${Math.random() * 2}s`,
+                      }}
+                    />
+                  ))}
                 </div>
-              </div>
 
-              {/* Title */}
-              <div>
-                <h2 className="font-pixel text-3xl text-primary mb-3 animate-pulse">
-                  MISSION
-                  <br />
-                  COMPLETE
-                </h2>
-                <p className="text-foreground/70 text-sm">
-                  Excellent work, agent! You successfully detected the phishing attempt.
-                </p>
-              </div>
-
-              {/* Stats Grid */}
-              <div className={`grid ${endingScoreAwarded > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-4 py-4`}>
-                {endingScoreAwarded > 0 && (
-                  <div className="space-y-2">
-                    <Star className="w-6 h-6 text-yellow-400 mx-auto" />
-                    <p className="font-pixel text-2xl text-foreground">+{endingScoreAwarded}</p>
-                    <p className="text-xs text-foreground/60">Score Earned</p>
+                <div className="text-center space-y-6 relative">
+                  {/* Success Icon */}
+                  <div className="flex justify-center">
+                    <div className="w-24 h-24 bg-primary/20 border-4 border-primary rounded-full flex items-center justify-center animate-pulse">
+                      <CheckCircle2 className="w-16 h-16 text-primary" />
+                    </div>
                   </div>
-                )}
-                <div className="space-y-2">
-                  <Zap className="w-6 h-6 text-secondary mx-auto" />
-                  <p className="font-pixel text-2xl text-secondary">+{endingXpAwarded}</p>
-                  <p className="text-xs text-foreground/60">XP Gained</p>
-                </div>
-                <div className="space-y-2">
-                  <Award className="w-6 h-6 text-accent mx-auto" />
-                  <p className="font-pixel text-2xl text-accent">+1</p>
-                  <p className="text-xs text-foreground/60">Badge Unlocked</p>
-                </div>
-              </div>
 
-              {/* New Badge Card */}
-              <Card className="bg-accent/10 border-2 border-accent p-4">
-                <div className="flex items-center gap-3">
-                  <Award className="w-8 h-8 text-accent flex-shrink-0" />
-                  <div className="text-left">
-                    <p className="font-pixel text-xs text-accent mb-1">NEW BADGE UNLOCKED!</p>
-                    <p className="text-sm text-foreground">Email Security Expert</p>
+                  {/* Title */}
+                  <div>
+                    <h2 className="font-pixel text-3xl text-primary mb-3 animate-pulse">
+                      MISSION
+                      <br />
+                      COMPLETE
+                    </h2>
+                    <p className="text-foreground/70 text-sm">
+                      Excellent work, agent! You successfully detected the phishing attempt.
+                    </p>
+                  </div>
+
+                  {/* Stats Grid */}
+                  <div className={`grid ${endingScoreAwarded > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-4 py-4`}>
+                    {endingScoreAwarded > 0 && (
+                      <div className="space-y-2">
+                        <Star className="w-6 h-6 text-yellow-400 mx-auto" />
+                        <p className="font-pixel text-2xl text-foreground">+{endingScoreAwarded}</p>
+                        <p className="text-xs text-foreground/60">Score Earned</p>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Zap className="w-6 h-6 text-secondary mx-auto" />
+                      <p className="font-pixel text-2xl text-secondary">+{endingXpAwarded}</p>
+                      <p className="text-xs text-foreground/60">XP Gained</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Award className="w-6 h-6 text-accent mx-auto" />
+                      <p className="font-pixel text-2xl text-accent">+1</p>
+                      <p className="text-xs text-foreground/60">Badge Unlocked</p>
+                    </div>
+                  </div>
+
+                  {/* New Badge Card */}
+                  <Card className="bg-accent/10 border-2 border-accent p-4">
+                    <div className="flex items-center gap-3">
+                      <Award className="w-8 h-8 text-accent flex-shrink-0" />
+                      <div className="text-left">
+                        <p className="font-pixel text-xs text-accent mb-1">NEW BADGE UNLOCKED!</p>
+                        <p className="text-sm text-foreground">Email Security Expert</p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-2 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground font-pixel text-sm h-12"
+                      onClick={() => onNavigate?.('dashboard')}
+                    >
+                      DASHBOARD
+                    </Button>
+                    {/* CONTINUE button only shown if NOT from teacher dialog completion */}
+                    {!teacherDialogCompleted && (
+                      <Button
+                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-pixel text-sm h-12 disabled:opacity-50"
+                        disabled={isFinishingGame}  // ✅ Disable while finishGame is in progress
+                        onClick={() => {
+                          // Reset mission result state
+                         
+                          setMissionResult(null)
+                          // Keep the updated score and stats for HUD display
+                          // The useEffect will create a new game session automatically
+                        }}
+                      >
+                        {isFinishingGame ? 'SAVING...' : 'CONTINUE'}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Card>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  className="flex-1 border-2 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground font-pixel text-sm h-12"
-                  onClick={() => onNavigate?.('dashboard')}
-                >
-                  DASHBOARD
-                </Button>
-                {/* CONTINUE button only shown if NOT from teacher dialog completion */}
-                {!teacherDialogCompleted && (
-                  <Button
-                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-pixel text-sm h-12 disabled:opacity-50"
-                    disabled={isFinishingGame}  // ✅ Disable while finishGame is in progress
-                    onClick={() => {
-                      // Reset mission result state
-                     
-                      setMissionResult(null)
-                      // Keep the updated score and stats for HUD display
-                      // The useEffect will create a new game session automatically
-                    }}
-                  >
-                    {isFinishingGame ? 'SAVING...' : 'CONTINUE'}
-                  </Button>
-                )}
-              </div>
             </div>
-          </Card>
-        </div>
+            </>
+          )}
         </>
       )}
 
       {/* Mission Failed Overlay */}
       {missionResult === 'failed' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-background/90 backdrop-blur-md" />
-          
-          <Card className="relative z-10 bg-card/95 backdrop-blur-sm border-4 border-destructive p-10 w-full max-w-lg animate-in zoom-in-95 duration-300">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-destructive to-transparent animate-pulse" />
-            
-            <div className="text-center space-y-6">
-              {/* Failed Icon */}
-              <div className="flex justify-center">
-                <div className="w-24 h-24 bg-destructive/20 border-4 border-destructive rounded-full flex items-center justify-center">
-                  <XCircle className="w-16 h-16 text-destructive" />
+        <>
+          {/* ✅ Ending loading overlay (prevents flicker/glitch) */}
+          {(!endingAwardReady || isFinishingGame) ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-background/90 backdrop-blur-md" />
+              <Card className="relative z-10 bg-card/95 backdrop-blur-sm border-4 border-destructive p-10 w-full max-w-lg animate-in zoom-in-95 duration-300">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 border-4 border-destructive border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="font-pixel text-xs text-foreground/70">CALCULATING RESULTS...</p>
+                  <p className="text-xs text-foreground/50">Saving your progress...</p>
                 </div>
-              </div>
-
-              {/* Title */}
-                           <div>
-                <h2 className="font-pixel text-3xl text-destructive mb-3">
-                  SIMULATION
-                  <br />
-                  FAILED
-                </h2>
-                <p className="text-foreground/70 text-sm mb-4">
-                  You clicked on the malicious link and compromised your security.
-                </p>
-              </div>
-
-              {/* Score/XP Display */}
-              <div className={`grid ${endingScoreAwarded !== 0 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 py-4 bg-destructive/5 rounded-lg p-4 border border-destructive/20`}>
-                {endingScoreAwarded !== 0 && (
-                  <div className="space-y-2">
-                    <Star className="w-6 h-6 text-yellow-400 mx-auto" />
-                    <p className="font-pixel text-2xl text-foreground">{endingScoreAwarded}</p>
-                    <p className="text-xs text-foreground/60">Score Change</p>
+              </Card>
+            </div>
+          ) : (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-background/90 backdrop-blur-md" />
+              
+              <Card className="relative z-10 bg-card/95 backdrop-blur-sm border-4 border-destructive p-10 w-full max-w-lg animate-in zoom-in-95 duration-300">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-destructive to-transparent animate-pulse" />
+                
+                <div className="text-center space-y-6">
+                  {/* Failed Icon */}
+                  <div className="flex justify-center">
+                    <div className="w-24 h-24 bg-destructive/20 border-4 border-destructive rounded-full flex items-center justify-center">
+                      <XCircle className="w-16 h-16 text-destructive" />
+                    </div>
                   </div>
-                )}
-                <div className="space-y-2">
-                  <Zap className="w-6 h-6 text-secondary mx-auto" />
-                  <p className="font-pixel text-2xl text-secondary">{endingXpAwarded}</p>
-                  <p className="text-xs text-foreground/60">XP Change</p>
-                </div>
-              </div>
 
-              {/* Learning Tip Card */}
-              <Card className="bg-accent/10 border-2 border-accent/50 p-4 text-left">
-                <div className="flex gap-3">
-                  <Shield className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
+                  {/* Title */}
                   <div>
-                    <p className="font-pixel text-xs text-accent mb-2">SECURITY TIP</p>
-                    <p className="text-sm text-foreground/80 leading-relaxed">
-                      Always verify sender emails before clicking links. Legitimate banks never ask for passwords via email.
+                    <h2 className="font-pixel text-3xl text-destructive mb-3">
+                      SIMULATION
+                      <br />
+                      FAILED
+                    </h2>
+                    <p className="text-foreground/70 text-sm mb-4">
+                      You clicked on the malicious link and compromised your security.
                     </p>
+                  </div>
+
+                  {/* Score/XP Display */}
+                  <div className={`grid ${endingScoreAwarded !== 0 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 py-4 bg-destructive/5 rounded-lg p-4 border border-destructive/20`}>
+                    {endingScoreAwarded !== 0 && (
+                      <div className="space-y-2">
+                        <Star className="w-6 h-6 text-yellow-400 mx-auto" />
+                        <p className="font-pixel text-2xl text-foreground">{endingScoreAwarded}</p>
+                        <p className="text-xs text-foreground/60">Score Change</p>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Zap className="w-6 h-6 text-secondary mx-auto" />
+                      <p className="font-pixel text-2xl text-secondary">{endingXpAwarded}</p>
+                      <p className="text-xs text-foreground/60">XP Change</p>
+                    </div>
+                  </div>
+
+                  {/* Learning Tip Card */}
+                  <Card className="bg-accent/10 border-2 border-accent/50 p-4 text-left">
+                    <div className="flex gap-3">
+                      <Shield className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-pixel text-xs text-accent mb-2">SECURITY TIP</p>
+                        <p className="text-sm text-foreground/80 leading-relaxed">
+                          Always verify sender emails before clicking links. Legitimate banks never ask for passwords via email.
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      variant="outline"
+                      className="w-full border-2 border-foreground/30 text-foreground hover:bg-foreground/10 font-pixel text-sm h-12"
+                      onClick={() => onNavigate?.('dashboard')}
+                    >
+                      DASHBOARD
+                    </Button>
+                    <Button
+                      className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground font-pixel text-sm h-12"
+                      onClick={handleRetry}
+                    >
+                      <RotateCcw className="w-5 h-5 mr-2" />
+                      RETRY
+                    </Button>
                   </div>
                 </div>
               </Card>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  className="w-full border-2 border-foreground/30 text-foreground hover:bg-foreground/10 font-pixel text-sm h-12"
-                  onClick={() => onNavigate?.('dashboard')}
-                >
-                  DASHBOARD
-                </Button>
-                <Button
-                  className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground font-pixel text-sm h-12"
-                  onClick={handleRetry}
-                >
-                  <RotateCcw className="w-5 h-5 mr-2" />
-                  RETRY
-                </Button>
-              </div>
             </div>
-          </Card>
-        </div>
+          )}
+        </>
       )}
     </div>
    )
