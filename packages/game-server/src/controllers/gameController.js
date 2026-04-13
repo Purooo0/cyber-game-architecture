@@ -1,4 +1,5 @@
 import { GameSession } from '../models/GameSession.js'
+// redeploy-marker: 2026-04-14 (no runtime impact)
 import { User } from '../models/User.js'
 import { ACTION_SCORES } from '../config/actionScoring.js'
 import { db } from '../config/firebase.js'
