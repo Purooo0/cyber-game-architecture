@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { TriggerBox, InteractiveObject } from '../game/types'
 import { usePhaserGameEngine } from '../game/usePhaserGameEngine'
+import { MobileDPad } from './MobileDPad'
 
 interface PhaserGameContainerProps {
   mapPath: string
@@ -36,7 +37,7 @@ export function PhaserGameContainer({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const { isReady, error: gameError, disableBarrier: disableBarrierMethod } = usePhaserGameEngine({
+  const { isReady, error: gameError, disableBarrier: disableBarrierMethod, setVirtualKeys } = usePhaserGameEngine({
     mapPath,
     width,
     height,
@@ -45,6 +46,33 @@ export function PhaserGameContainer({
     onTrigger,
     onInteract,
   })
+
+  // Show D-pad only on touch devices (mobile/tablet)
+  const [showMobileControls, setShowMobileControls] = useState(false)
+
+  useEffect(() => {
+    // Prefer pointer:coarse + touch capability check
+    const compute = () => {
+      const coarse = typeof window !== 'undefined' && window.matchMedia
+        ? window.matchMedia('(pointer: coarse)').matches
+        : false
+      const touchCapable = typeof window !== 'undefined'
+        ? (('ontouchstart' in window) || (navigator.maxTouchPoints > 0))
+        : false
+      setShowMobileControls(coarse || touchCapable)
+    }
+
+    compute()
+    window.addEventListener('resize', compute)
+    return () => window.removeEventListener('resize', compute)
+  }, [])
+
+  // Safety: stop movement when input becomes disabled
+  useEffect(() => {
+    if (disabled) {
+      setVirtualKeys?.({ up: false, down: false, left: false, right: false })
+    }
+  }, [disabled, setVirtualKeys])
 
   useEffect(() => {
     if (isReady) {
@@ -99,6 +127,14 @@ export function PhaserGameContainer({
         >
           {/* Phaser canvas akan di-render di sini */}
         </div>
+        
+        {/* Mobile controls overlay (only on touch devices) */}
+        {showMobileControls && (
+          <MobileDPad
+            disabled={disabled || isLoading || !isReady}
+            onChange={(keys) => setVirtualKeys?.(keys)}
+          />
+        )}
         
         {/* Disabled overlay - blocks input during mentor dialogue */}
         {disabled && (

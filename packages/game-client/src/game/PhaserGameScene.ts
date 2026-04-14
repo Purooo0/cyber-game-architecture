@@ -1231,4 +1231,21 @@ export class GameScene extends Phaser.Scene {
       console.error(`❌ [BARRIER] Error disabling barrier:`, error)
     }
   }
+
+  /**
+   * Mobile/virtual controls can call this to inject movement state.
+   * This only updates the same keys already used by keyboard handling.
+   */
+  setVirtualKeys(keys: { up?: boolean; down?: boolean; left?: boolean; right?: boolean }) {
+    this.keysPressed['arrowup'] = !!keys.up
+    this.keysPressed['arrowdown'] = !!keys.down
+    this.keysPressed['arrowleft'] = !!keys.left
+    this.keysPressed['arrowright'] = !!keys.right
+
+    // Keep WASD in sync (some code reads w/a/s/d directly)
+    this.keysPressed['w'] = !!keys.up
+    this.keysPressed['s'] = !!keys.down
+    this.keysPressed['a'] = !!keys.left
+    this.keysPressed['d'] = !!keys.right
+  }
 }

@@ -203,6 +203,14 @@ export function usePhaserGameEngine(config: UsePhaserGameEngineConfig) {
     }
   }
 
+  const setVirtualKeys = (keys: { up?: boolean; down?: boolean; left?: boolean; right?: boolean }) => {
+    try {
+      sceneRef.current?.setVirtualKeys(keys)
+    } catch (error) {
+      console.error('[React Hook] Error calling setVirtualKeys:', error)
+    }
+  }
+
   return {
     isReady,
     error,
@@ -212,5 +220,6 @@ export function usePhaserGameEngine(config: UsePhaserGameEngineConfig) {
     setPlayerPosition,
     getPlayer,
     disableBarrier,
+    setVirtualKeys,
   }
 }
