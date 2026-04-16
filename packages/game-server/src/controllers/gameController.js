@@ -122,8 +122,9 @@ export const finishGame = async (req, res) => {
     let isFirstEndingCompletion = false
     let scoreToAward = 0
 
-    // ✅ XP behavior stays as-is: XP is always awarded based on sessionScore
-    const xpToAward = Math.round(sessionScore / 10)
+    // ✅ XP behavior: XP is always awarded and equals the absolute point impact of the ending.
+    // This avoids negative XP on penalty endings and stays consistent with UI expectations.
+    const xpToAward = Math.abs(sessionScore)
 
     // ✅ Normalize legacy scenario ids so dashboard tracking keys stay consistent
     // Mission 2 previously used `security-wifi` in some places; dashboard expects `cafe-scenario`.

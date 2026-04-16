@@ -304,7 +304,8 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
 
       // Update UI with new score from session
       setScore(data.sessionScore || 0)
-      setXp(Math.round((data.sessionScore || 0) / 10))
+      // EXP display should always be positive and match server award rule
+      setXp(Math.abs(data.sessionScore || 0))
 
       return data
     } catch (error) {
@@ -1210,7 +1211,7 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
               )}
               <div className="space-y-2">
                 <Zap className="w-6 h-6 text-secondary mx-auto" />
-                <p className="font-pixel text-2xl text-secondary">+{endingXpAwarded ?? Math.round(sessionScoreEarned / 10)}</p>
+                <p className="font-pixel text-2xl text-secondary">+{endingXpAwarded ?? Math.abs(sessionScoreEarned)}</p>
                 <p className="text-xs text-foreground/60">EXP Diperoleh</p>
               </div>
             </div>
