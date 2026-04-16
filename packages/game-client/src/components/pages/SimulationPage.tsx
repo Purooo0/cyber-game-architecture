@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Shield,
   Pause,
@@ -918,60 +918,84 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   // Track if finishGame award values have arrived (prevents ending UI flicker)
   const [endingAwardReady, setEndingAwardReady] = useState(false)
 
+  // Guard: prevent double-finishing / double-awarding when missionResult is set twice quickly
+  // (observed as: ending UI shown -> calculation overlay -> ending UI again, sometimes doubling score display)
+  const finishingRef = useRef(false)
+
   // Handle mission completion - send score to backend and refresh user stats
   useEffect(() => {
     if (missionResult === 'success' || missionResult === 'failed') {
+      // Prevent duplicate finish calls if missionResult gets set twice
+      if (finishingRef.current) {
+        console.warn('[SimulationPage] finish already in progress; ignoring duplicate missionResult trigger')
+        return
+      }
+
+      finishingRef.current = true
       setIsFinishingGame(true)
       setEndingAwardReady(false)
 
+      // Clear previous awarded values immediately so UI cannot flash stale numbers before calculation overlay
+      setEndingScoreAwarded(0)
+      setEndingXpAwarded(0)
+
       const timer = setTimeout(async () => {
-        const isSuccess = missionResult === 'success'
-        const endingIdToSend = endingId || (isSuccess ? 'success' : 'failed')
-        console.log(`[Frontend] Completing scenario:`, { isSuccess, score, missionSessionId, endingId: endingIdToSend })
-        const result = await completeScenarioWithBackend(endingIdToSend)
+        try {
+          const isSuccess = missionResult === 'success'
+          const endingIdToSend = endingId || (isSuccess ? 'success' : 'failed')
+          console.log(`[Frontend] Completing scenario:`, { isSuccess, score, missionSessionId, endingId: endingIdToSend })
+          const result = await completeScenarioWithBackend(endingIdToSend)
 
-        // ✅ Capture finishGame awarded values for ending UI
-        const scoreAwarded = result?.session?.scoreAwarded
-        const xpAwarded = result?.session?.xp
-        if (typeof scoreAwarded === 'number') setEndingScoreAwarded(scoreAwarded)
-        if (typeof xpAwarded === 'number') setEndingXpAwarded(xpAwarded)
+          // ✅ Capture finishGame awarded values for ending UI
+          const scoreAwarded = result?.session?.scoreAwarded
+          const xpAwarded = result?.session?.xp
+          if (typeof scoreAwarded === 'number') setEndingScoreAwarded(scoreAwarded)
+          if (typeof xpAwarded === 'number') setEndingXpAwarded(xpAwarded)
 
-        // Mark award ready only after we have the server response
-        setEndingAwardReady(true)
+          // Mark award ready only after we have the server response
+          setEndingAwardReady(true)
 
-        // Store updated user stats from backend response
-        if (result?.data?.userStats) {
-          setUserStats(result.data.userStats)
-          setBaseUserScore(result.data.userStats.totalScore)
-          setUserCurrentXP(result.data.userStats.currentXP)
-          setUserLevel(result.data.userStats.level)
-          setUserXPToNextLevel(result.data.userStats.xpToNextLevel)
-          console.log(`[Frontend] ✓ Updated user stats from backend:`, result.data.userStats)
-        } else {
-          // If no stats in response, manually fetch them
-          console.log(`[Frontend] No userStats in finishGame response, fetching separately...`)
-          const token = getToken()
-          if (token) {
-            try {
-              const statsResponse = await fetch(`${API_URL}/api/user/stats`, {
-                headers: { Authorization: `Bearer ${token}` },
-              })
-              if (statsResponse.ok) {
-                const statsData = await statsResponse.json()
-                console.log(`[Frontend] Fetched fresh user stats:`, statsData.stats)
-                setBaseUserScore(statsData.stats?.totalScore || 0)
-                setUserCurrentXP(statsData.stats?.currentXP || 0)
-                setUserLevel(statsData.stats?.level || 1)
-                setUserXPToNextLevel(statsData.stats?.xpToNextLevel || 1000)
+          // Store updated user stats from backend response
+          if (result?.data?.userStats) {
+            setUserStats(result.data.userStats)
+            setBaseUserScore(result.data.userStats.totalScore)
+            setUserCurrentXP(result.data.userStats.currentXP)
+            setUserLevel(result.data.userStats.level)
+            setUserXPToNextLevel(result.data.userStats.xpToNextLevel)
+            console.log(`[Frontend] ✓ Updated user stats from backend:`, result.data.userStats)
+          } else {
+            // If no stats in response, manually fetch them
+            console.log(`[Frontend] No userStats in finishGame response, fetching separately...`)
+            const token = getToken()
+            if (token) {
+              try {
+                const statsResponse = await fetch(`${API_URL}/api/user/stats`, {
+                  headers: { Authorization: `Bearer ${token}` },
+                })
+                if (statsResponse.ok) {
+                  const statsData = await statsResponse.json()
+                  console.log(`[Frontend] Fetched fresh user stats:`, statsData.stats)
+                  setBaseUserScore(statsData.stats?.totalScore || 0)
+                  setUserCurrentXP(statsData.stats?.currentXP || 0)
+                  setUserLevel(statsData.stats?.level || 1)
+                  setUserXPToNextLevel(statsData.stats?.xpToNextLevel || 1000)
+                }
+              } catch (error) {
+                console.error('[Frontend] Error fetching user stats:', error)
               }
-            } catch (error) {
-              console.error('[Frontend] Error fetching user stats:', error)
             }
           }
+        } finally {
+          setIsFinishingGame(false)
+          finishingRef.current = false
         }
-        setIsFinishingGame(false)
       }, 1500)
-      return () => clearTimeout(timer)
+
+      return () => {
+        clearTimeout(timer)
+        // make sure we never get stuck in finishing=true if component unmounts
+        finishingRef.current = false
+      }
     }
   }, [missionResult, missionSessionId, endingId])
 
