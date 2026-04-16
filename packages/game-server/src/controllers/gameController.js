@@ -181,10 +181,17 @@ export const finishGame = async (req, res) => {
           completedForScenario.push(normalizedEndingId)
           completedEndings[normalizedScenarioId] = completedForScenario
 
-          // ✅ Also mark scenario as completed for the first time (used by dashboard)
+          // ✅ Mark scenario completed (canonical, used by Dashboard "X / 2 COMPLETED")
+          // IMPORTANT: keep two sources consistent:
+          // - ended-based tracking: completedEndings / completedMissionsByScenario
+          // - missions endpoint: completedScenarios[] (used by /api/user/missions and /api/user/stats)
           const completedMissionsByScenario = user.completedMissionsByScenario || {}
           const alreadyCounted = !!completedMissionsByScenario[normalizedScenarioId]
           const completedMissions = Number(user.completedMissions || 0)
+
+          const completedScenarios = Array.isArray(user.completedScenarios) ? user.completedScenarios : []
+          const completedScenariosSet = new Set(completedScenarios)
+          completedScenariosSet.add(normalizedScenarioId)
 
           const updates = {
             completedEndings,
@@ -193,6 +200,7 @@ export const finishGame = async (req, res) => {
               [normalizedScenarioId]: true,
             },
             completedMissions: alreadyCounted ? completedMissions : (completedMissions + 1),
+            completedScenarios: Array.from(completedScenariosSet),
           }
 
           // Optionally preserve legacy key so older dashboards still show completion
