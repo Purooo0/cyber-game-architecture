@@ -79,6 +79,20 @@ export function PhaserGameContainer({
       console.log('[PhaserGameContainer] Game is ready - calling onMapLoadComplete')
       setIsLoading(false)
       onMapLoadComplete?.()
+
+      // Scale the Phaser canvas to always fill the responsive container.
+      // This does not change game logic/render resolution; it only affects CSS layout.
+      try {
+        const container = document.getElementById('phaser-game-container')
+        const canvas = container?.querySelector('canvas') as HTMLCanvasElement | null
+        if (canvas) {
+          canvas.style.width = '100%'
+          canvas.style.height = '100%'
+          canvas.style.display = 'block'
+        }
+      } catch {
+        // ignore
+      }
     }
   }, [isReady, onMapLoadComplete])
 
@@ -109,19 +123,28 @@ export function PhaserGameContainer({
   }
 
   // Container HARUS di-render sejak awal agar Phaser punya parent saat init
+  // Responsive layout: keep game internal resolution fixed, but scale the container to fit viewport.
+  // Requirement: border/frame flexes with page size; game render code not modified.
   return (
     <div className="flex flex-col items-center justify-center w-full" style={{ minHeight: '1000px' }}>
-      <div className="relative">
+      {/* This wrapper defines the responsive size (cropping allowed). */}
+      <div
+        className="relative w-[min(100vw,1280px)] h-[min(calc(100vw*0.75),960px)] sm:w-[min(100vw,1280px)] sm:h-[min(calc(100vw*0.75),960px)]"
+        style={{
+          maxWidth: '100vw',
+          // Keep the overall frame in a 4:3 box. Height driven by width.
+          // Tailwind calc above is the primary; this is a safe fallback.
+          aspectRatio: `${width} / ${height}`,
+        }}
+      >
         <div
           ref={containerRef}
           id="phaser-game-container"
-          className="border-4 border-green-500"
+          className="border-4 border-green-500 w-full h-full"
           style={{
-            width: `${width}px`,
-            height: `${height}px`,
             position: 'relative',
             display: 'block',
-            overflow: 'hidden',
+            overflow: 'hidden', // crop is allowed
             backgroundColor: '#0a0e27', // Dark navy blue matching theme
           }}
         >
