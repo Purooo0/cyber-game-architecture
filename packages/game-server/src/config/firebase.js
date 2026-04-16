@@ -31,7 +31,13 @@ if (!admin.apps.length) {
     });
   } else {
     // Let the app boot (so routing/health works). Any db/auth usage will fail until env vars are set.
-    admin.initializeApp();
+    // IMPORTANT: admin.database() needs a databaseURL; without it, the module import can crash,
+    // and on Vercel that often surfaces as 404 (function failed to load).
+    admin.initializeApp({
+      databaseURL:
+        process.env.FIREBASE_DATABASE_URL ||
+        "https://cyber-edu-game-default-rtdb.asia-southeast1.firebasedatabase.app",
+    });
   }
 }
 
