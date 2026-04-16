@@ -1623,13 +1623,14 @@ export const LaptopPopup: React.FC<LaptopPopupProps> = ({
         actionType="cafe_safe_choice"  // ✅ Pass actionType
         onSuccess={async () => {
           // Scoring already applied when connecting to correct WiFi
+          // Feedback correctness must NOT affect ending result
           await onMissionSuccess()
           onClose()
         }}
         onFail={async () => {
           // Scoring already applied when connecting to correct WiFi
-          // But mission still fails because they got the feedback question wrong
-          await onMissionFail()
+          // Feedback correctness must NOT affect ending result
+          await onMissionSuccess()
           onClose()
         }}
       />

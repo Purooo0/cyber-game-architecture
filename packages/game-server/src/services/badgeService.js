@@ -74,23 +74,25 @@ export const awardBadgeToUser = async (userId, scenarioId) => {
       return null;
     }
 
-    // Get current badges
+    // Badges are stored as full objects with earnedAt timestamp
     const snapshot = await db.ref(`users/${userId}/badges`).once("value");
-    const badges = snapshot.val() || [];
+    const existingBadges = snapshot.val() || [];
 
-    // Check if already awarded
-    if (badges.includes(scenarioId)) {
-      console.log(`User ${userId} already has badge for ${scenarioId}`);
+    const arr = Array.isArray(existingBadges) ? existingBadges : [];
+    const alreadyAwarded = arr.some((b) => (typeof b === 'string' ? b === badge.id : b?.id === badge.id));
+
+    if (alreadyAwarded) {
+      console.log(`User ${userId} already has badge ${badge.id}`);
       return badge;
     }
 
-    // Add new badge
-    badges.push(scenarioId);
-    await db.ref(`users/${userId}/badges`).set(badges);
+    const badgeWithTimestamp = { ...badge, earnedAt: new Date().toISOString() };
+    arr.push(badgeWithTimestamp);
+    await db.ref(`users/${userId}/badges`).set(arr);
 
     console.log(`Badge awarded to user ${userId} for scenario ${scenarioId}`);
 
-    return badge;
+    return badgeWithTimestamp;
   } catch (error) {
     console.error("Error awarding badge:", error);
     throw error;

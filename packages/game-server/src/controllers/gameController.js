@@ -265,17 +265,20 @@ export const finishGame = async (req, res) => {
       console.error('[GameServer] Firebase update error:', fbError)
     }
 
-    // ✅ Badge awarding: keep existing behavior, but only award when score awarded (>0)
+    // ✅ Badge awarding: award on FIRST scenario completion (not tied to scoreToAward)
+    // Reason: Mission 1 can have 0 score awarded on repeated endings, but player still deserves the badge
+    // once the scenario is completed for the first time.
     try {
       const scenario = getScenarioById(session.scenarioId)
-      if (scenario && scenario.badge && scoreToAward > 0) {
+      if (scenario && scenario.badge && isFirstEndingCompletion) {
         const userRef = db.ref(`users/${session.userId}`)
         const snapshot = await userRef.once('value')
         const user = snapshot.val()
 
         if (user) {
-          const existingBadges = user.badges || []
-          const badgeExists = existingBadges.some(b => b.id === scenario.badge.id)
+          const existingBadgesRaw = user.badges || []
+          const existingBadges = Array.isArray(existingBadgesRaw) ? existingBadgesRaw : []
+          const badgeExists = existingBadges.some(b => (typeof b === 'string' ? b === scenario.badge.id : b?.id === scenario.badge.id))
 
           if (!badgeExists) {
             const badgeWithTimestamp = { ...scenario.badge, earnedAt: new Date().toISOString() }
