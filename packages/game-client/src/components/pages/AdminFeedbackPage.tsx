@@ -63,6 +63,7 @@ export default function AdminFeedbackPage() {
   const [viewMode, setViewMode] = useState<'all' | 'scenario' | 'user'>('all')
 
   const [analytics, setAnalytics] = useState<AdminAnalyticsResponse | null>(null)
+  const [isResetting, setIsResetting] = useState(false)
 
   useEffect(() => {
     fetchFeedbackAndAnalytics()
@@ -201,6 +202,40 @@ export default function AdminFeedbackPage() {
     return `${m}m ${String(s).padStart(2, '0')}s`
   }
 
+  const resetAnalytics = async () => {
+    const token = localStorage.getItem('authToken')
+    if (!token) return
+
+    const ok = window.confirm('Reset semua data analytics? Ini akan menghapus Runs dan Feedback Answers yang sudah terkumpul.')
+    if (!ok) return
+
+    setIsResetting(true)
+    try {
+      const resp = await fetch(`${API_URL}/api/game/admin/analytics/reset`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => '')
+        console.error('Failed to reset analytics:', body)
+        alert('Reset gagal. Cek console / server logs.')
+        return
+      }
+
+      // Refresh UI
+      await fetchFeedbackAndAnalytics()
+    } catch (e) {
+      console.error('Error resetting analytics:', e)
+      alert('Reset gagal. Cek console / server logs.')
+    } finally {
+      setIsResetting(false)
+    }
+  }
+
   return (
     <div className="min-h-screen w-full bg-slate-950 text-slate-100">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -212,16 +247,27 @@ export default function AdminFeedbackPage() {
               <p className="text-foreground/70">Global + per-scenario + raw data export</p>
             </div>
 
-            <Button
-              variant="outline"
-              className="border-slate-700 text-slate-200 hover:bg-slate-900"
-              onClick={() => {
-                // safest: hard navigation to root/dashboard so it works even if router state is lost
-                window.location.assign('/')
-              }}
-            >
-              Back to Dashboard
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={resetAnalytics}
+                variant="destructive"
+                disabled={isResetting}
+                title="Delete all analytics (runs + feedback answers)"
+              >
+                {isResetting ? 'Resetting...' : 'Reset Analytics'}
+              </Button>
+
+              <Button
+                variant="outline"
+                className="border-slate-700 text-slate-200 hover:bg-slate-900"
+                onClick={() => {
+                  // safest: hard navigation to root/dashboard so it works even if router state is lost
+                  window.location.assign('/')
+                }}
+              >
+                Back to Dashboard
+              </Button>
+            </div>
           </div>
         </div>
 

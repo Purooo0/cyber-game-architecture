@@ -24,6 +24,7 @@ router.get("/admin/feedback/user/:userId", authenticate, requireAdmin, gameContr
 // ✅ Admin analytics (new)
 router.get('/admin/analytics', authenticate, requireAdmin, gameController.getAdminAnalytics)
 router.get('/admin/analytics/raw', authenticate, requireAdmin, gameController.getAdminAnalyticsRaw)
+router.post('/admin/analytics/reset', authenticate, requireAdmin, gameController.resetAdminAnalytics)
 
 // ✅ Ending tracking endpoint - Get user's completed endings per mission
 router.get("/user/endings", authenticate, gameController.getUserEndingTracking)

@@ -935,6 +935,25 @@ export const getAdminAnalyticsRaw = async (req, res) => {
   }
 }
 
+/**
+ * Reset admin analytics data (ADMIN ONLY)
+ * Deletes Firebase analytics nodes so the admin stats page starts fresh.
+ */
+export const resetAdminAnalytics = async (req, res) => {
+  try {
+    // Delete both known analytics collections
+    await Promise.all([
+      db.ref('analytics/runs').remove(),
+      db.ref('analytics/feedbackAnswers').remove(),
+    ])
+
+    return res.json({ success: true })
+  } catch (error) {
+    console.error('[GameServer] Error resetting admin analytics:', error)
+    return res.status(500).json({ error: 'Failed to reset analytics' })
+  }
+}
+
 // ✅ Keep default export for compatibility with routes importing gameController as default
 export default {
   startGame,
@@ -949,4 +968,5 @@ export default {
   getUserEndingTracking,
   getAdminAnalytics,
   getAdminAnalyticsRaw,
+  resetAdminAnalytics,
 }
