@@ -68,9 +68,6 @@ export class GameScene extends Phaser.Scene {
   // NEW: Track active interactive overlaps (for E indicator on interactive objects)
   private activeInteractiveOverlaps: Set<string> = new Set()
 
-  // NEW: Pointer tracking for tap confirmation (mobile)
-  private pointerDownForNpcTap?: { id: number; x: number; y: number; time: number }
-
   constructor(config: GameSceneConfig) {
     super(config)
     this.mapPath = config.mapPath
@@ -619,10 +616,28 @@ export class GameScene extends Phaser.Scene {
     
     console.log(`✓ NPC system initialized with ${this.npcs.size} NPCs`)
 
-    // IMPORTANT (mobile): do NOT trigger NPC interactions on pointerdown.
-    // Touch devices can fire pointerdown during scroll/drag and feel too sensitive.
-    // NPC taps are handled globally in handleMouseClick() on confirmed TAP.
-    // (We keep NPC sprites interactive so hitTest can detect them.)
+    // IMPORTANT: Bridge NPC sprite clicks into the existing interactive callback system.
+    // This keeps all existing React logic intact (SimulationPage/CafeScenarioPage routes by interactive.name).
+    this.npcs.forEach((npc) => {
+      npc.on('pointerdown', () => {
+        if (!npc.isInteractable) return
+
+        // Map NPC sprite name -> existing interactive object name expected by React logic
+        // Mission 1 (classroom): interactive names are speak_friend / speak_teacher
+        // Mission 2 (cafe): interactive names are npc3 / npc4
+        let interactiveName = npc.name
+        if (npc.name === 'npc1') interactiveName = 'speak_friend'
+        if (npc.name === 'npc2') interactiveName = 'speak_teacher'
+
+        this.onInteractCallback?.({
+          x: npc.x,
+          y: npc.y,
+          width: npc.displayWidth,
+          height: npc.displayHeight,
+          name: interactiveName,
+        })
+      })
+    })
   }
 
   private setupInputHandling() {
@@ -639,133 +654,637 @@ export class GameScene extends Phaser.Scene {
       this.keysPressed[event.code.toLowerCase()] = false
     })
 
-    // Mouse/touch input
+    // Mouse click input
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      this.pointerDownForNpcTap = {
-        id: pointer.id,
-        x: pointer.worldX,
-        y: pointer.worldY,
-        time: pointer.downTime,
-      }
-
-      // Desktop: act immediately
-      // Mobile: defer to pointerup tap-confirmation (prevents over-sensitive triggers)
-      const isTouchLike = pointer.wasTouch || pointer.primaryDown === false
-      if (!isTouchLike) {
-        this.handleMouseClick(pointer)
-      }
-    })
-
-    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-      if (!this.pointerDownForNpcTap || this.pointerDownForNpcTap.id !== pointer.id) return
-
-      const dx = pointer.worldX - this.pointerDownForNpcTap.x
-      const dy = pointer.worldY - this.pointerDownForNpcTap.y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-
-      const TAP_MAX_MOVE = 14
-      if (dist > TAP_MAX_MOVE) return
-
-      ;(pointer as any).__isTap = true
       this.handleMouseClick(pointer)
     })
   }
 
+  private setupCollisionLayers(tilemap: Phaser.Tilemaps.Tilemap) {
+    // Configure collision on tilemap layers
+    // Find all tile layers and set collision based on their tile properties
+    console.log('[Collision] Setting up collision layers from tilemap...')
+    
+    for (const layer of this.tileLayers) {
+      if (!layer || !layer.tileset) continue
+      
+      // Set collision by property: tiles with 'collides' property = true will be solid
+      layer.setCollisionByProperty({ collides: true })
+      
+      console.log(`✓ Collision configured on layer: "${layer.name}" - tiles with collides:true are solid`)
+    }
+    
+    console.log(`[Collision] Configured ${this.tileLayers.length} tile layers`)
+  }
+
+  private setupPhysics() {
+    // Set physics world bounds to match tilemap size precisely
+    if (!this.tilemap) return
+    const mapWidthInPixels = this.tilemap.widthInPixels
+    const mapHeightInPixels = this.tilemap.heightInPixels
+    
+    this.physics.world.setBounds(0, 0, mapWidthInPixels, mapHeightInPixels)
+    console.log(`[Physics World] Bounds set to (0, 0, ${mapWidthInPixels}, ${mapHeightInPixels})`)
+
+    // Create physics groups untuk collision, trigger, interactive
+    this.collisionGroup = this.physics.add.staticGroup()
+    this.triggerGroup = this.physics.add.group()
+    this.interactiveGroup = this.physics.add.group()
+
+    console.log('[Physics] Setting up collision, trigger, dan interactive...')
+
+    // Add collision boxes ke physics static group
+    for (const collision of this.collisionsRef) {
+      // Check if this is the barrier collision object
+      const isBarrier = collision.name && collision.name.toLowerCase() === 'barrier'
+
+      const body = this.add.rectangle(
+        collision.x + collision.width / 2,
+        collision.y + collision.height / 2,
+        collision.width,
+        collision.height
+      )
+      body.setVisible(false)
+      this.physics.add.existing(body, true)  // true = static
+      this.collisionGroup.add(body)
+      
+      // Store reference to barrier if this is it
+      if (isBarrier) {
+        this.barrierCollisionBody = body.body as Phaser.Physics.Arcade.Body
+        console.log(`✓ [BARRIER] Barrier collision created and tracked at (${collision.x.toFixed(2)}, ${collision.y.toFixed(2)})`)
+      } else {
+        console.log(`✓ Collision added at (${collision.x.toFixed(2)}, ${collision.y.toFixed(2)}) size ${collision.width.toFixed(2)}×${collision.height.toFixed(2)}`)
+      }
+    }
+
+    // Add collider between player dan collision group
+    this.physics.add.collider(this.player, this.collisionGroup)
+    
+    // Add collider between player dan tilemap collision layers
+    // This handles collision with tiles that have collides:true property
+    for (const layer of this.tileLayers) {
+      if (layer) {
+        this.physics.add.collider(this.player, layer)
+        console.log(`✓ Tilemap collider created for layer: "${layer.name}"`)
+      }
+    }
+
+    // Add trigger zones (invisible physics bodies untuk overlap detection)
+    for (const trigger of this.triggersRef) {
+      const triggerBody = this.add.rectangle(
+        trigger.x + trigger.width / 2,
+        trigger.y + trigger.height / 2,
+        trigger.width,
+        trigger.height
+      )
+      triggerBody.setVisible(false)
+      this.physics.add.existing(triggerBody, false)  // false = dynamic (untuk overlap)
+      triggerBody.setData('trigger', trigger)
+      this.triggerGroup.add(triggerBody)
+      console.log(`✓ Trigger "${trigger.name}" added at (${trigger.x.toFixed(2)}, ${trigger.y.toFixed(2)}) size ${trigger.width.toFixed(2)}×${trigger.height.toFixed(2)}`)
+    }
+
+    // Add interactive objects (invisible physics bodies untuk interaction)
+    for (const interactive of this.interactivesRef) {
+      const interactiveBody = this.add.rectangle(
+        interactive.x + interactive.width / 2,
+        interactive.y + interactive.height / 2,
+        interactive.width,
+        interactive.height
+      )
+      // DEBUG: Make visible with green outline (DISABLED for performance)
+      // interactiveBody.setStrokeStyle(2, 0x00ff00, 0.7)
+      // interactiveBody.setFillStyle(0x00ff00, 0.1)
+      
+      this.physics.add.existing(interactiveBody, false)  // false = dynamic (untuk overlap)
+      interactiveBody.setData('interactive', interactive)
+      this.interactiveGroup.add(interactiveBody)
+      console.log(`✓ Interactive "${interactive.name}" added at (${interactive.x.toFixed(2)}, ${interactive.y.toFixed(2)}) size ${interactive.width.toFixed(2)}×${interactive.height.toFixed(2)}`)
+      console.log(`  → Center: (${(interactive.x + interactive.width / 2).toFixed(2)}, ${(interactive.y + interactive.height / 2).toFixed(2)})`)
+    }
+    
+    console.log(`[Physics] Total: ${this.collisionsRef.length} collisions, ${this.triggersRef.length} triggers, ${this.interactivesRef.length} interactives`)
+    
+    // Setup overlap callbacks
+    this.physics.add.overlap(this.player, this.triggerGroup, this.onTriggerOverlap, undefined, this)
+    this.physics.add.overlap(this.player, this.interactiveGroup, this.onInteractiveOverlap, undefined, this)
+  }
+
+  private onTriggerOverlap(player: any, triggerBody: any) {
+    const trigger = triggerBody.getData('trigger') as TriggerBox
+    // const spawnX = 119.720651812438
+    // const spawnY = 862.986365147988
+    // const distance = Math.sqrt(Math.pow(this.player.x - spawnX, 2) + Math.pow(this.player.y - spawnY, 2))
+    // console.log(`[TRIGGER OVERLAP] Overlapping with "${trigger.name}" - distance from spawn: ~${distance.toFixed(0)}px`)
+    
+    // Handle berbagai trigger type
+    if (trigger.name === 'lamp_trigger') {
+      // console.log(`[TRIGGER] lamp_trigger activated - Brightness 100%`)
+      this.cameras.main.setAlpha(1)
+    } 
+    else if (trigger.name === 'phone_trigger') {
+      if (!trigger.triggered) {
+        trigger.triggered = true
+        // console.log(`[TRIGGER] phone_trigger activated (ONCE) - open_phone action`)
+        this.onTriggerCallback?.(trigger)
+      }
+    }
+    else if (trigger.name === 'next_scene_trigger') {
+      if (!trigger.triggered) {
+        trigger.triggered = true
+        // console.log(`[TRIGGER] next_scene_trigger activated - initiating map transition`)
+        this.onTriggerCallback?.(trigger)
+      }
+    }
+    else if (trigger.name === 'wardrobe_trigger') {
+      if (!trigger.triggered) {
+        trigger.triggered = true
+        console.log(`[TRIGGER] wardrobe_trigger activated (akan dihapus)`)
+      }
+    }
+  }
+
+  private onInteractiveOverlap(player: any, interactiveBody: any) {
+    const interactive = interactiveBody.getData('interactive') as InteractiveObject
+    
+    // Handle special NPC interaction interactives (speak_friend, speak_teacher)
+    // These should trigger proximity detection just like trigger objects
+    if (interactive.name === 'speak_friend' || interactive.name === 'speak_teacher') {
+      // Add to active set if not already there
+      if (!this.activeInteractiveOverlaps.has(interactive.name)) {
+        this.activeInteractiveOverlaps.add(interactive.name)
+        console.log(`[INTERACTIVE OVERLAP] Entered ${interactive.name}`)
+      }
+      
+      // Find the NPC associated with this interactive to get accurate position
+      let npcPos = { x: interactive.x, y: interactive.y }
+      if (interactive.name === 'speak_friend') {
+        const npc1 = this.npcs.get('npc1')
+        if (npc1) {
+          npcPos = { x: npc1.x, y: npc1.y }
+          console.log(`[INTERACTIVE OVERLAP] Using NPC1 position: (${npcPos.x}, ${npcPos.y})`)
+        }
+      } else if (interactive.name === 'speak_teacher') {
+        const npc2 = this.npcs.get('npc2')
+        if (npc2) {
+          npcPos = { x: npc2.x, y: npc2.y }
+          console.log(`[INTERACTIVE OVERLAP] Using NPC2 position: (${npcPos.x}, ${npcPos.y})`)
+        }
+      }
+      
+      // Create a trigger-like object to pass to callback (for proximity detection)
+      // This allows the E indicator to work with interactive objects
+      const triggerLike: TriggerBox = {
+        name: interactive.name,
+        x: npcPos.x,  // Use NPC position instead of trigger box
+        y: npcPos.y,  // Use NPC position instead of trigger box
+        width: interactive.width,
+        height: interactive.height,
+        action: '',
+        triggered: false,
+      }
+      
+      // Calculate screen coordinates for UI positioning (same as trigger)
+      const camera = this.cameras.main
+      const screenX = (triggerLike.x - camera.scrollX) * camera.zoom
+      const screenY = (triggerLike.y - camera.scrollY) * camera.zoom
+      
+      triggerLike.screenX = screenX
+      triggerLike.screenY = screenY
+      
+      // Call trigger callback continuously while overlapping
+      // This makes E indicator show same way as for trigger-based NPCs
+      this.onTriggerCallback?.(triggerLike)
+    } else {
+      // For other interactives, just log
+      console.log(`[INTERACTIVE OVERLAP] Near "${interactive.name}" - press E to interact`)
+    }
+  }
+
+  private setupCamera() {
+    // Camera follow player with bounds to prevent black areas
+    if (!this.player || !this.tilemap) {
+      console.error('[Camera] No player or tilemap to follow')
+      return
+    }
+    
+    // Get tilemap dimensions
+    const mapWidthInPixels = this.tilemap.widthInPixels
+    const mapHeightInPixels = this.tilemap.heightInPixels
+    const viewportWidth = this.scale.width  // 1280
+    const viewportHeight = this.scale.height  // 960
+    
+    // Set camera and physics bounds to match tilemap
+    this.cameras.main.setBounds(0, 0, mapWidthInPixels, mapHeightInPixels)
+    this.physics.world.setBounds(0, 0, mapWidthInPixels, mapHeightInPixels)
+    console.log(`[Camera] Bounds set to (0, 0, ${mapWidthInPixels}, ${mapHeightInPixels})`)
+    
+    // Set camera zoom based on map size
+    // For maps larger than viewport, use lower zoom to see more; for smaller maps, use higher zoom
+    let focusZoom = 1.0  // Default 100%
+    
+    // If map is close to viewport size, use zoom 1.5 to focus on player area (Scenario 1: bedroom)
+    if (mapWidthInPixels <= 1400 && mapHeightInPixels <= 1000) {
+      focusZoom = 1.5  // Bedroom: 1280×960, zoom 1.5 for close-up
+    }
+    // If map is larger, use zoom 1.0 to see full map area (Scenario 2: cafe)
+    else if (mapWidthInPixels > 1400) {
+      focusZoom = 1.0  // Cafe: 2048×1280, zoom 1.0 to see more area
+    }
+    
+    this.cameras.main.setZoom(focusZoom)
+    console.log(`[Camera] Zoom set to: ${focusZoom} (map: ${mapWidthInPixels}×${mapHeightInPixels}px, viewport: ${viewportWidth}×${viewportHeight})`)  
+    
+    // Set camera origin and background
+    this.cameras.main.setOrigin(0.5, 0.5)  // Center origin for smooth follow
+    // Don't set background color - canvas is transparent, container has dark navy blue bg
+    console.log(`[Camera] No background color set (transparent canvas, container handles styling)`)
+    
+    // Start camera following player with smooth damping
+    // true = smooth follow, 0.1/0.1 = tight deadzone keeps player perfectly centered
+    this.cameras.main.startFollow(this.player, true, 0.1, 0.1)
+    
+    // Center camera on player immediately
+    this.cameras.main.centerOn(this.player.x, this.player.y)
+    
+    console.log('[Camera] Setup complete:', {
+      playerPos: { x: this.player.x.toFixed(1), y: this.player.y.toFixed(1) },
+      mapSize: { width: mapWidthInPixels, height: mapHeightInPixels },
+      viewportSize: { width: viewportWidth, height: viewportHeight },
+      zoom: focusZoom,
+      cameraPos: { x: this.cameras.main.scrollX.toFixed(1), y: this.cameras.main.scrollY.toFixed(1) },
+      cameraBounds: { x: 0, y: 0, width: mapWidthInPixels, height: mapHeightInPixels }
+    })
+    
+    // 🔍 DEBUG: Draw player position indicator (DISABLED for performance)
+    // const playerDebugGraphics = this.add.graphics()
+    // playerDebugGraphics.fillStyle(0x00ff00, 0.6)
+    // playerDebugGraphics.fillCircle(this.player.x, this.player.y, 15)
+    // playerDebugGraphics.lineStyle(2, 0xffff00, 1)
+    // playerDebugGraphics.strokeCircle(this.player.x, this.player.y, 20)
+    // playerDebugGraphics.setDepth(10000)
+    // console.log(`[Camera Debug] Green circle at player position (${this.player.x.toFixed(0)}, ${this.player.y.toFixed(0)})`)
+    
+    // 🔍 DEBUG: Log camera info every frame (DISABLED for performance)
+    // this.events.on('update', () => {
+    //   const cameraInfo = {
+    //     scrollX: this.cameras.main.scrollX.toFixed(1),
+    //     scrollY: this.cameras.main.scrollY.toFixed(1),
+    //     playerX: this.player.x.toFixed(1),
+    //     playerY: this.player.y.toFixed(1),
+    //     zoom: this.cameras.main.zoom.toFixed(2),
+    //   }
+    //   // Log occasionally
+    //   if (Math.random() < 0.016) {
+    //     console.log('[Camera Update]', cameraInfo)
+    //   }
+    // })
+  }
+
+  update() {
+    if (!this.player) return
+
+    // Handle movement input
+    this.handleMovement()
+
+    // Update player depth based on Y position (RPG-style layering)
+    // Semakin bawah (Y besar), semakin di depan
+    this.player.setDepth(1000 + Math.round(this.player.y))
+
+    // Check triggers
+    this.checkTriggers()
+
+    // Check interactions
+    this.checkInteractions()
+
+    // Update game state
+    this.gameState.playerPos = { x: this.player.x, y: this.player.y }
+  }
+
+  private handleMovement() {
+    const { w, s, a, d } = this.keysPressed
+    const arrowUp = this.keysPressed['arrowup']
+    const arrowDown = this.keysPressed['arrowdown']
+    const arrowLeft = this.keysPressed['arrowleft']
+    const arrowRight = this.keysPressed['arrowright']
+
+    const MOVEMENT_SPEED = 160  // pixels per second (proper speed untuk smooth movement)
+    
+    // Reset velocity setiap frame
+    let vx = 0
+    let vy = 0
+    let newDirection = this.playerState.direction
+    let isMoving = false
+
+    // Horizontal movement (priority untuk animation)
+    if (arrowLeft || a) {
+      vx = -MOVEMENT_SPEED
+      newDirection = 'left'
+      isMoving = true
+    } else if (arrowRight || d) {
+      vx = MOVEMENT_SPEED
+      newDirection = 'right'
+      isMoving = true
+    }
+
+    // Vertical movement
+    if (arrowUp || w) {
+      vy = -MOVEMENT_SPEED
+      if (!isMoving) newDirection = 'up'  // Only set direction jika horizontal tidak moving
+      isMoving = true
+    } else if (arrowDown || s) {
+      vy = MOVEMENT_SPEED
+      if (!isMoving) newDirection = 'down'  // Only set direction jika horizontal tidak moving
+      isMoving = true
+    }
+
+    // Set velocity untuk smooth physics-based movement
+    this.player.setVelocity(vx, vy)
+
+    // Handle animation state change dengan layout 32×32 (4 cols × 8 rows)
+    if (isMoving) {
+      if (newDirection !== this.playerState.direction) {
+        this.playerState.direction = newDirection
+        const animKey = `walk${newDirection.charAt(0).toUpperCase()}${newDirection.slice(1)}`
+        this.player.play(animKey, true)
+      }
+    } else if (!isMoving && this.playerState.direction !== 'idle') {
+      // Stop moving - play idle
+      this.playerState.direction = 'idle'
+      this.player.play('idle', true)
+    }
+
+    this.playerState.isMoving = isMoving
+    this.playerState.x = this.player.x
+    this.playerState.y = this.player.y
+  }
+
+  private checkTriggers() {
+    const currentActiveTriggers = new Set<string>()
+    
+    this.physics.overlap(this.player, this.triggerGroup, (player, triggerObj) => {
+      const trigger = (triggerObj as any).getData('trigger') as TriggerBox
+      
+      // Track currently active triggers for proximity detection
+      currentActiveTriggers.add(trigger.name)
+      
+      // Handle different trigger types
+      if (trigger.name === 'lamp_trigger') {
+        // Lamp trigger: dapat dipicu berkali-kali untuk brightness control
+        // console.log(`[TRIGGER] lamp_trigger activated - Brightness 100%`)
+        // Set brightness ke 100%
+        this.cameras.main.setAlpha(1)
+        // Note: tidak set trigger.triggered = true agar bisa triggered lagi
+      } 
+      else if (trigger.name === 'phone_trigger') {
+        // Phone trigger: hanya bisa dipicu 1x (once = true)
+        if (!trigger.triggered) {
+          trigger.triggered = true
+          // console.log(`[TRIGGER] phone_trigger activated (ONCE) - open_phone action`)
+          this.onTriggerCallback?.(trigger)
+        }
+      }
+      else if (trigger.name === 'next_scene_trigger') {
+        // Next scene trigger: skip untuk sekarang (belum ada scene selanjutnya)
+        if (!trigger.triggered) {
+          trigger.triggered = true
+          // console.log(`[TRIGGER] next_scene_trigger activated (TODO: implement scene transition)`)
+          // this.onTriggerCallback?.(trigger)
+        }
+      }
+      else if (trigger.name === 'wardrobe_trigger') {
+        // Wardrobe trigger: akan dihapus nanti
+        if (!trigger.triggered) {
+          trigger.triggered = true
+          // console.log(`[TRIGGER] wardrobe_trigger activated (akan dihapus)`)
+        }
+      }
+      else if (trigger.name === 'speak_friend' || trigger.name === 'speak_teacher') {
+        // NPC interaction triggers - continuous overlap for proximity detection
+        // Calculate screen coordinates for UI positioning
+        // Screen position = world position - camera scroll offset + zoom adjustment
+        const camera = this.cameras.main
+        const screenX = (trigger.x - camera.scrollX) * camera.zoom
+        const screenY = (trigger.y - camera.scrollY) * camera.zoom
+        
+        // Add screen coordinates to trigger for React to use
+        trigger.screenX = screenX
+        trigger.screenY = screenY
+        
+        // Call callback continuously while overlapping
+        this.onTriggerCallback?.(trigger)
+      }
+      else {
+        // Default: trigger hanya bisa 1x
+        if (!trigger.triggered) {
+          trigger.triggered = true
+          // console.log(`[TRIGGER] Triggered: "${trigger.name}" at (${trigger.x}, ${trigger.y})`)
+          this.onTriggerCallback?.(trigger)
+        }
+      }
+    })
+    
+    // Detect trigger exits - when we were in a trigger but no longer are
+    const exitedTriggers = Array.from(this.activeTriggers).filter(
+      name => !currentActiveTriggers.has(name)
+    )
+    
+    // Notify React of exits for NPC interaction triggers
+    for (const triggerName of exitedTriggers) {
+      if (triggerName === 'speak_friend' || triggerName === 'speak_teacher') {
+        // Create a fake trigger object for exit notification
+        const exitTrigger: TriggerBox = {
+          name: `${triggerName}_exit`,
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+          action: '',
+          triggered: false,
+        }
+        this.onTriggerCallback?.(exitTrigger)
+        console.log(`[TRIGGER EXIT] Left ${triggerName}`)
+      }
+    }
+    
+    // Update active triggers for next frame
+    this.activeTriggers = currentActiveTriggers
+    
+    // Also check for interactive overlap exits (for NPC E indicators)
+    // Get current interactive overlaps by checking physics overlap
+    const currentInteractiveOverlaps = new Set<string>()
+    this.physics.overlap(this.player, this.interactiveGroup, (player, interactiveBody) => {
+      const interactive = (interactiveBody as any).getData('interactive') as InteractiveObject
+      if (interactive.name === 'speak_friend' || interactive.name === 'speak_teacher') {
+        currentInteractiveOverlaps.add(interactive.name)
+      }
+      return false  // Don't process collision, just detect presence
+    })
+    
+    // Detect interactive overlap exits
+    const exitedInteractiveOverlaps = Array.from(this.activeInteractiveOverlaps).filter(
+      name => !currentInteractiveOverlaps.has(name)
+    )
+    
+    // Notify React of interactive overlap exits for NPC E indicators
+    for (const overlappingName of exitedInteractiveOverlaps) {
+      // Create exit trigger to hide E indicator
+      const exitTrigger: TriggerBox = {
+        name: `${overlappingName}_exit`,
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        action: '',
+        triggered: false,
+      }
+      this.onTriggerCallback?.(exitTrigger)
+      console.log(`[INTERACTIVE OVERLAP EXIT] Left ${overlappingName}`)
+    }
+    
+    // Update active interactive overlaps for next frame
+    this.activeInteractiveOverlaps = currentInteractiveOverlaps
+  }
+
   private handleMouseClick(pointer: Phaser.Input.Pointer) {
-    // Ignore if already handled as a tap
-    if ((pointer as any).__isTapHandled) return
-    ;(pointer as any).__isTapHandled = true
-
     // DEBUG: Draw circle at click point (DISABLED for performance)
-    // this.add.circle(pointer.worldX, pointer.worldY, 10, 0xff0000, 1)
-
+    // const debugCircle = this.add.circle(pointer.worldX, pointer.worldY, 8, 0xff0000, 0.5)
+    // this.time.delayedCall(500, () => debugCircle.destroy())
+    
+    // console.log(`[CLICK] Mouse at (${pointer.worldX.toFixed(2)}, ${pointer.worldY.toFixed(2)})`)
+    
+    // Check if mouse is pointing at any NPC
     const clickX = pointer.worldX
     const clickY = pointer.worldY
 
-    const isTouchLike = !!pointer.wasTouch
-    if (isTouchLike && !(pointer as any).__isTap) return
-
-    // 1) NPCs via hit-test (sprite click)
-    try {
-      const hits = this.input.hitTestPointer(pointer) as Phaser.GameObjects.GameObject[]
-      const hitNpc = hits?.find((go: any) => go && go instanceof NPC) as NPC | undefined
-      if (hitNpc && hitNpc.isInteractable) {
-        let interactiveName = hitNpc.name
-        if (hitNpc.name === 'npc1') interactiveName = 'speak_friend'
-        if (hitNpc.name === 'npc2') interactiveName = 'speak_teacher'
-
-        this.onInteractCallback?.({
-          x: hitNpc.x,
-          y: hitNpc.y,
-          width: hitNpc.displayWidth,
-          height: hitNpc.displayHeight,
-          name: interactiveName,
-        })
-        return
+    // If we clicked a real interactive GameObject (e.g., NPC sprite setInteractive()),
+    // let Phaser's input system handle it and don't do manual bounding-box hit testing.
+    const clicked = pointer.event?.target as any
+    if (clicked) {
+      // We only want to early-return for Phaser-managed hits, not for empty canvas clicks.
+      // Phaser sets pointer.downElement / target for DOM element; actual GameObject hit is tracked on pointer.worldX/worldY.
+      // So use hitTest on the scene's input manager when available.
+      try {
+        const hits = this.input.hitTestPointer(pointer)
+        if (hits && hits.length > 0) {
+          return
+        }
+      } catch {
+        // ignore and fall back to previous logic
       }
-    } catch {
-      // ignore
     }
 
-    // 2) Then check interactive objects (Tiled Interactive layer boxes)
+    // Check NPCs first (legacy manual hit-test; kept as fallback)
     let foundClick = false
+    this.npcs.forEach((npc) => {
+      const npcBody = npc.body as Phaser.Physics.Arcade.Body
+      if (npcBody && npcBody.world) {
+        if (Phaser.Geom.Rectangle.Contains(
+          new Phaser.Geom.Rectangle(
+            npcBody.position.x - npcBody.width / 2,
+            npcBody.position.y - npcBody.height / 2,
+            npcBody.width,
+            npcBody.height
+          ),
+          clickX,
+          clickY
+        )) {
+          npc.interact()
+          foundClick = true
+        }
+      }
+    })
+
+    if (foundClick) return
+
+    // Then check interactive objects (Tiled Interactive layer boxes)
     this.interactiveGroup.children.each((obj: Phaser.GameObjects.GameObject) => {
       const interactiveBody = (obj as any).body as Phaser.Physics.Arcade.Body
       if (interactiveBody && interactiveBody.world) {
-        if (
-          Phaser.Geom.Rectangle.Contains(
-            new Phaser.Geom.Rectangle(
-              interactiveBody.position.x - interactiveBody.width / 2,
-              interactiveBody.position.y - interactiveBody.height / 2,
-              interactiveBody.width,
-              interactiveBody.height
-            ),
-            clickX,
-            clickY
-          )
-        ) {
+        // Check if click is within the bounds of this interactive object
+        if (Phaser.Geom.Rectangle.Contains(
+          new Phaser.Geom.Rectangle(
+            interactiveBody.position.x - interactiveBody.width / 2,
+            interactiveBody.position.y - interactiveBody.height / 2,
+            interactiveBody.width,
+            interactiveBody.height
+          ),
+          clickX,
+          clickY
+        )) {
           const interactive = (obj as any).getData('interactive') as InteractiveObject
+          // console.log(`[INTERACT] ✓✓✓ CLICKED ON: "${interactive.name}" at (${interactive.x}, ${interactive.y})`)
           this.onInteractCallback?.(interactive)
           foundClick = true
         }
       }
       return true
     })
-
+    
     if (!foundClick) {
       console.log(`[INTERACT] ✗ Click at (${clickX.toFixed(2)}, ${clickY.toFixed(2)}) did not hit any interactive object`)
     }
   }
 
-  private setupCollisionLayers(tilemap: Phaser.Tilemaps.Tilemap) {
-    // Collision group untuk semua static object (dari object layer)
-    this.collisionGroup = this.physics.add.staticGroup()
-
-    // Add collision boxes from object layer (Tiled: Object Layer -> Properties -> Collision)
-    for (const collision of this.collisionsRef) {
-      const { x, y, width, height } = collision
-      const box = this.collisionGroup.create(x, y, 'invisible').setOrigin(0, 0)
-      box.setSize(width, height)
-      box.setAlpha(0) // Invisible
-      box.setImmovable(true)
+  private checkInteractions() {
+    // Check E key atau Enter untuk interact
+    if (this.keysPressed['e'] || this.keysPressed['enter']) {
+      this.physics.overlap(this.player, this.interactiveGroup, (player, interactiveObj) => {
+        const interactive = (interactiveObj as any).getData('interactive') as InteractiveObject
+        // console.log(`[INTERACT] Interacting with: "${interactive.name}" at (${interactive.x}, ${interactive.y})`)
+        this.onInteractCallback?.(interactive)
+      })
     }
-
-    console.log(`✓ Collision layers setup complete: ${this.collisionsRef.length} boxes`)
   }
 
-  private setupPhysics() {
-    // Player physics
-    this.physics.add.collider(this.player, this.collisionGroup)
-
-    // NPCs with static collision
-    this.npcGroup.children.iterate((npc) => {
-      this.physics.add.collider(npc, this.collisionGroup)
-      return true
-    })
+  getGameState(): GameState {
+    return this.gameState
   }
 
-  private setupCamera() {
-    // Camera follow player with some offset
-    this.cameras.main.startFollow(this.player, true, 0.09, 0.09, 0, 50)
+  setPlayerPosition(x: number, y: number) {
+    this.player.setPosition(x, y)
+    this.playerState.x = x
+    this.playerState.y = y
+  }
+
+  getPlayer(): Player {
+    return this.playerState
+  }
+
+  // NEW: Method to disable barrier collision dynamically
+  disableBarrier(): void {
+    try {
+      if (this.barrierCollisionBody) {
+        console.log(`🔓 [BARRIER] Disabling barrier collision...`)
+        // Disable the physics body so it no longer collides
+        this.barrierCollisionBody.enable = false
+        // Also remove from collision group to ensure no interaction
+        if (this.collisionGroup && this.barrierCollisionBody.gameObject) {
+          this.collisionGroup.remove(this.barrierCollisionBody.gameObject)
+        }
+        console.log(`✓ [BARRIER] Barrier collision disabled successfully`)
+      } else {
+        console.warn(`⚠ [BARRIER] Barrier collision body not found - may not have been created`)
+      }
+    } catch (error) {
+      console.error(`❌ [BARRIER] Error disabling barrier:`, error)
+    }
+  }
+
+  /**
+   * Mobile/virtual controls can call this to inject movement state.
+   * This only updates the same keys already used by keyboard handling.
+   */
+  setVirtualKeys(keys: { up?: boolean; down?: boolean; left?: boolean; right?: boolean }) {
+    this.keysPressed['arrowup'] = !!keys.up
+    this.keysPressed['arrowdown'] = !!keys.down
+    this.keysPressed['arrowleft'] = !!keys.left
+    this.keysPressed['arrowright'] = !!keys.right
+
+    // Keep WASD in sync (some code reads w/a/s/d directly)
+    this.keysPressed['w'] = !!keys.up
+    this.keysPressed['s'] = !!keys.down
+    this.keysPressed['a'] = !!keys.left
+    this.keysPressed['d'] = !!keys.right
   }
 }
