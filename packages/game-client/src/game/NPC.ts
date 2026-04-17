@@ -40,15 +40,13 @@ export class NPC extends Phaser.Physics.Arcade.Sprite {
 
     // Make whole sprite clickable (instead of Tiled interactive box)
     // Use an explicit rectangle hit-area to match the displayed size.
+    // (More reliable than default pixel-perfect / texture-based hit testing.)
     this.setInteractive(
       new Phaser.Geom.Rectangle(-width / 2, -height / 2, width, height),
       Phaser.Geom.Rectangle.Contains
     )
-    this.setScrollFactor(1)
-    this.input!.enabled = true
+    // Hand cursor on hover
     if (this.input) this.input.cursor = 'pointer'
-
-    // NOTE: actual game logic wiring is handled in PhaserGameScene (bridging to onInteract callback)
 
     this.on('pointerdown', () => {
       if (!this.isInteractable) return

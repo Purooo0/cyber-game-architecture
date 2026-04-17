@@ -615,29 +615,6 @@ export class GameScene extends Phaser.Scene {
     }
     
     console.log(`✓ NPC system initialized with ${this.npcs.size} NPCs`)
-
-    // IMPORTANT: Bridge NPC sprite clicks into the existing interactive callback system.
-    // This keeps all existing React logic intact (SimulationPage/CafeScenarioPage routes by interactive.name).
-    this.npcs.forEach((npc) => {
-      npc.on('pointerdown', () => {
-        if (!npc.isInteractable) return
-
-        // Map NPC sprite name -> existing interactive object name expected by React logic
-        // Mission 1 (classroom): interactive names are speak_friend / speak_teacher
-        // Mission 2 (cafe): interactive names are npc3 / npc4
-        let interactiveName = npc.name
-        if (npc.name === 'npc1') interactiveName = 'speak_friend'
-        if (npc.name === 'npc2') interactiveName = 'speak_teacher'
-
-        this.onInteractCallback?.({
-          x: npc.x,
-          y: npc.y,
-          width: npc.displayWidth,
-          height: npc.displayHeight,
-          name: interactiveName,
-        })
-      })
-    })
   }
 
   private setupInputHandling() {
