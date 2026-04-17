@@ -1133,8 +1133,25 @@ export class GameScene extends Phaser.Scene {
     // Check if mouse is pointing at any NPC
     const clickX = pointer.worldX
     const clickY = pointer.worldY
-    
-    // Check NPCs first
+
+    // If we clicked a real interactive GameObject (e.g., NPC sprite setInteractive()),
+    // let Phaser's input system handle it and don't do manual bounding-box hit testing.
+    const clicked = pointer.event?.target as any
+    if (clicked) {
+      // We only want to early-return for Phaser-managed hits, not for empty canvas clicks.
+      // Phaser sets pointer.downElement / target for DOM element; actual GameObject hit is tracked on pointer.worldX/worldY.
+      // So use hitTest on the scene's input manager when available.
+      try {
+        const hits = this.input.hitTestPointer(pointer)
+        if (hits && hits.length > 0) {
+          return
+        }
+      } catch {
+        // ignore and fall back to previous logic
+      }
+    }
+
+    // Check NPCs first (legacy manual hit-test; kept as fallback)
     let foundClick = false
     this.npcs.forEach((npc) => {
       const npcBody = npc.body as Phaser.Physics.Arcade.Body
@@ -1149,7 +1166,6 @@ export class GameScene extends Phaser.Scene {
           clickX,
           clickY
         )) {
-          // console.log(`[NPC INTERACT] ✓✓✓ CLICKED ON NPC: "${npc.name}"`)
           npc.interact()
           foundClick = true
         }
@@ -1157,8 +1173,8 @@ export class GameScene extends Phaser.Scene {
     })
 
     if (foundClick) return
-    
-    // Then check interactive objects
+
+    // Then check interactive objects (Tiled Interactive layer boxes)
     this.interactiveGroup.children.each((obj: Phaser.GameObjects.GameObject) => {
       const interactiveBody = (obj as any).body as Phaser.Physics.Arcade.Body
       if (interactiveBody && interactiveBody.world) {
