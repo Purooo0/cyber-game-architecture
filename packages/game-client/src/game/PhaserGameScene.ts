@@ -71,14 +71,6 @@ export class GameScene extends Phaser.Scene {
   // NEW: Pointer tracking for tap confirmation (mobile)
   private pointerDownForNpcTap?: { id: number; x: number; y: number; time: number }
 
-  // Track virtual keys coming from mobile D-pad (and map them into keysPressed)
-  private virtualKeys: { up: boolean; down: boolean; left: boolean; right: boolean } = {
-    up: false,
-    down: false,
-    left: false,
-    right: false,
-  }
-
   constructor(config: GameSceneConfig) {
     super(config)
     this.mapPath = config.mapPath
@@ -775,112 +767,5 @@ export class GameScene extends Phaser.Scene {
   private setupCamera() {
     // Camera follow player with some offset
     this.cameras.main.startFollow(this.player, true, 0.09, 0.09, 0, 50)
-  }
-
-  /**
-   * Called by React hook via `usePhaserGameEngine().setVirtualKeys`.
-   * We map the virtual keys into `keysPressed` so movement logic stays unified.
-   */
-  public setVirtualKeys(keys: { up?: boolean; down?: boolean; left?: boolean; right?: boolean }) {
-    this.virtualKeys = {
-      up: !!keys.up,
-      down: !!keys.down,
-      left: !!keys.left,
-      right: !!keys.right,
-    }
-
-    // Mirror into keysPressed using WASD + arrows (covers any legacy checks)
-    this.keysPressed['w'] = this.virtualKeys.up
-    this.keysPressed['arrowup'] = this.virtualKeys.up
-    this.keysPressed['s'] = this.virtualKeys.down
-    this.keysPressed['arrowdown'] = this.virtualKeys.down
-    this.keysPressed['a'] = this.virtualKeys.left
-    this.keysPressed['arrowleft'] = this.virtualKeys.left
-    this.keysPressed['d'] = this.virtualKeys.right
-    this.keysPressed['arrowright'] = this.virtualKeys.right
-  }
-
-  update() {
-    if (!this.player) return
-
-    const body = this.player.body as Phaser.Physics.Arcade.Body | undefined
-    if (!body) return
-
-    const up = !!(this.keysPressed['w'] || this.keysPressed['arrowup'])
-    const down = !!(this.keysPressed['s'] || this.keysPressed['arrowdown'])
-    const left = !!(this.keysPressed['a'] || this.keysPressed['arrowleft'])
-    const right = !!(this.keysPressed['d'] || this.keysPressed['arrowright'])
-
-    // Player speed: prefer config override, otherwise fall back to existing state
-    const speed = this.playerState.speed ?? 3
-    // Use Arcade Physics velocity (existing project uses a tiny physics body; velocity feels consistent)
-    const v = speed * 90
-
-    let vx = 0
-    let vy = 0
-    if (left) vx -= v
-    if (right) vx += v
-    if (up) vy -= v
-    if (down) vy += v
-
-    // Normalize diagonal movement so it's not faster
-    if (vx !== 0 && vy !== 0) {
-      const inv = 1 / Math.sqrt(2)
-      vx *= inv
-      vy *= inv
-    }
-
-    body.setVelocity(vx, vy)
-
-    // Animations + facing
-    const isMoving = vx !== 0 || vy !== 0
-    if (!isMoving) {
-      // stop to idle based on last direction
-      switch (this.playerState.direction) {
-        case 'left':
-          this.player.play('idleLeft', true)
-          break
-        case 'right':
-          this.player.play('idleRight', true)
-          break
-        case 'up':
-          this.player.play('idleUp', true)
-          break
-        case 'down':
-        default:
-          this.player.play('idle', true)
-          break
-      }
-      this.playerState.isMoving = false
-      this.playerState.direction = this.playerState.direction || 'idle'
-    } else {
-      // choose dominant axis for facing
-      if (Math.abs(vx) > Math.abs(vy)) {
-        this.playerState.direction = vx < 0 ? 'left' : 'right'
-      } else {
-        this.playerState.direction = vy < 0 ? 'up' : 'down'
-      }
-
-      switch (this.playerState.direction) {
-        case 'left':
-          this.player.play('walkLeft', true)
-          break
-        case 'right':
-          this.player.play('walkRight', true)
-          break
-        case 'up':
-          this.player.play('walkUp', true)
-          break
-        case 'down':
-        default:
-          this.player.play('walkDown', true)
-          break
-      }
-
-      this.playerState.isMoving = true
-    }
-
-    // Update depth based on Y for RPG-style layering
-    this.player.setDepth(1000 + Math.round(this.player.y))
   }
 }
