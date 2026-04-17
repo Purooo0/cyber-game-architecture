@@ -169,6 +169,9 @@ export class GameScene extends Phaser.Scene {
       // Create player sprite dengan physics
       this.createPlayer()
 
+      // (RESTORE) Create trigger + interactive physics objects from Tiled refs
+      this.createTriggerAndInteractiveObjects()
+
       // Create NPCs
       this.createNPCs()
 
@@ -225,6 +228,38 @@ export class GameScene extends Phaser.Scene {
     } catch (error) {
       console.error('Error in create:', error)
     }
+  }
+
+  /**
+   * Build Arcade Physics groups for Trigger + Interactive objects extracted from Tiled.
+   * This normalizes collision/overlap/click behavior across all maps.
+   */
+  private createTriggerAndInteractiveObjects() {
+    // Trigger boxes
+    this.triggerGroup = this.physics.add.group()
+    for (const trigger of this.triggersRef) {
+      const box = this.triggerGroup.create(trigger.x, trigger.y, 'invisible').setOrigin(0, 0) as any
+      box.setAlpha(0)
+      box.body?.setAllowGravity?.(false)
+      box.body?.setImmovable?.(true)
+      box.body?.setSize?.(trigger.width, trigger.height, false)
+      box.setData('trigger', trigger)
+    }
+
+    // Interactive boxes
+    this.interactiveGroup = this.physics.add.group()
+    for (const interactive of this.interactivesRef) {
+      const box = this.interactiveGroup.create(interactive.x, interactive.y, 'invisible').setOrigin(0, 0) as any
+      box.setAlpha(0)
+      box.body?.setAllowGravity?.(false)
+      box.body?.setImmovable?.(true)
+      box.body?.setSize?.(interactive.width, interactive.height, false)
+      box.setData('interactive', interactive)
+    }
+
+    console.log(
+      `✓ Trigger/Interactive groups built: ${this.triggersRef.length} triggers, ${this.interactivesRef.length} interactives`
+    )
   }
 
   private createTilemapFromData(mapData: any): Phaser.Tilemaps.Tilemap | null {
@@ -680,12 +715,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleMouseClick(pointer: Phaser.Input.Pointer) {
+    // Guard: scene might receive input before groups initialized (prevents crash)
+    if (!this.player) return
+
     // Ignore if already handled as a tap
     if ((pointer as any).__isTapHandled) return
     ;(pointer as any).__isTapHandled = true
-
-    // DEBUG: Draw circle at click point (DISABLED for performance)
-    // this.add.circle(pointer.worldX, pointer.worldY, 10, 0xff0000, 1)
 
     const clickX = pointer.worldX
     const clickY = pointer.worldY
@@ -694,6 +729,7 @@ export class GameScene extends Phaser.Scene {
     if (isTouchLike && !(pointer as any).__isTap) return
 
     // 1) NPCs via hit-test (sprite click)
+    // Restrict the hit list to NPC instances only to avoid wrong routing.
     try {
       const hits = this.input.hitTestPointer(pointer) as Phaser.GameObjects.GameObject[]
       const hitNpc = hits?.find((go: any) => go && go instanceof NPC) as NPC | undefined
@@ -716,6 +752,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // 2) Then check interactive objects (Tiled Interactive layer boxes)
+    if (!this.interactiveGroup) return
+
     let foundClick = false
     this.interactiveGroup.children.each((obj: Phaser.GameObjects.GameObject) => {
       const interactiveBody = (obj as any).body as Phaser.Physics.Arcade.Body
@@ -765,11 +803,35 @@ export class GameScene extends Phaser.Scene {
     // Player physics
     this.physics.add.collider(this.player, this.collisionGroup)
 
+    // Trigger overlaps (fire once when entering)
+    if (this.triggerGroup) {
+      this.physics.add.overlap(this.player, this.triggerGroup, (_player, obj) => {
+        const trigger = (obj as any).getData('trigger') as TriggerBox | undefined
+        if (!trigger) return
+
+        // Only fire when entering the trigger area
+        if (this.activeTriggers.has(trigger.name)) return
+        this.activeTriggers.add(trigger.name)
+        this.onTriggerCallback?.(trigger)
+      })
+    }
+
+    // Interactive overlaps bookkeeping (optional; keeps behavior consistent)
+    if (this.interactiveGroup) {
+      this.physics.add.overlap(this.player, this.interactiveGroup, (_player, obj) => {
+        const interactive = (obj as any).getData('interactive') as InteractiveObject | undefined
+        if (!interactive) return
+        this.activeInteractiveOverlaps.add(interactive.name)
+      })
+    }
+
     // NPCs with static collision
-    this.npcGroup.children.iterate((npc) => {
-      this.physics.add.collider(npc, this.collisionGroup)
-      return true
-    })
+    if (this.npcGroup) {
+      this.npcGroup.children.iterate((npc) => {
+        this.physics.add.collider(npc, this.collisionGroup)
+        return true
+      })
+    }
   }
 
   private setupCamera() {
