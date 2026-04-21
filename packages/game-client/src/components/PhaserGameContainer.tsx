@@ -182,7 +182,7 @@ export function PhaserGameContainer({
       </div>
       <div className="mt-4 text-center text-green-500 text-xs font-press-start space-y-1">
         <p>↑↓←→ or WASD to move</p>
-        <p>E or ENTER to interact</p>
+        <p>Click to interact</p>
         {debug && <p className="text-[9px] text-yellow-500">DEBUG MODE ON</p>}
       </div>
     </div>
