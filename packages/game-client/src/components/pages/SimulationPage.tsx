@@ -279,7 +279,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   const mentorLines = [
     "Anda sekarang berada di dalam simulasi jaringan sekolah. Sebuah email baru saja tiba di kotak masuk Anda — terlihat resmi, tetapi ada yang terasa mencurigakan.",
     "Selidiki area dengan hati-hati. Klik pada ponsel untuk membaca email dan tentukan: apakah pesan ini sah atau upaya phishing?",
-    "Tip: Gunakan tombol panah atau WASD untuk bergerak. Tekan E atau klik untuk berinteraksi dengan objek. Semoga berhasil!",
+    "Tip: Gunakan tombol panah atau WASD untuk bergerak. Klik untuk berinteraksi dengan objek. Semoga berhasil!",
   ]
 
   // NEW: Good ending mentor message - shown after successfully confirming phishing with teacher
@@ -1745,7 +1745,88 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
               <div className="absolute inset-0 bg-background/90 backdrop-blur-md" />
               
               <Card className="relative z-10 bg-card/95 backdrop-blur-sm border-4 border-destructive p-10 w-full max-w-lg animate-in zoom-in-95 duration-300">
-                {/* ...existing code... */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-destructive to-transparent animate-pulse" />
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-destructive to-transparent animate-pulse" />
+
+                <div className="text-center space-y-6 relative">
+                  {/* Failure Icon */}
+                  <div className="flex justify-center">
+                    <div className="w-24 h-24 bg-destructive/20 border-4 border-destructive rounded-full flex items-center justify-center">
+                      <XCircle className="w-16 h-16 text-destructive" />
+                    </div>
+                  </div>
+
+                  {/* Title */}
+                  <div>
+                    <h2 className="font-pixel text-3xl text-destructive mb-3">
+                      MISI
+                      <br />
+                      GAGAL
+                    </h2>
+                    <p className="text-foreground/70 text-sm">
+                      Sayang sekali, agen. Kamu gagal mendeteksi upaya phishing kali ini.
+                    </p>
+                  </div>
+
+                  {/* Stats Grid */}
+                  <div className={`grid ${endingScoreAwarded > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-4 py-4`}>
+                    {endingScoreAwarded > 0 && (
+                      <div className="space-y-2">
+                        <Star className="w-6 h-6 text-yellow-400 mx-auto" />
+                        <p className="font-pixel text-2xl text-foreground">+{endingScoreAwarded}</p>
+                        <p className="text-xs text-foreground/60">Score Earned</p>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Zap className="w-6 h-6 text-secondary mx-auto" />
+                      <p className="font-pixel text-2xl text-secondary">+{endingXpAwarded}</p>
+                      <p className="text-xs text-foreground/60">XP Gained</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Award className="w-6 h-6 text-accent mx-auto" />
+                      <p className="font-pixel text-2xl text-accent">+1</p>
+                      <p className="text-xs text-foreground/60">Badge Unlocked</p>
+                    </div>
+                  </div>
+
+                  {/* New Badge Card */}
+                  <Card className="bg-accent/10 border-2 border-accent p-4">
+                    <div className="flex items-center gap-3">
+                      <Award className="w-8 h-8 text-accent flex-shrink-0" />
+                      <div className="text-left">
+                        <p className="font-pixel text-xs text-accent mb-1">NEW BADGE UNLOCKED!</p>
+                        <p className="text-sm text-foreground">Email Security Expert</p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-2 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground font-pixel text-sm h-12"
+                      onClick={() => onNavigate?.('dashboard')}
+                    >
+                      DASHBOARD
+                    </Button>
+                    {/* CONTINUE button only shown if NOT from teacher dialog completion */}
+                    {!teacherDialogCompleted && (
+                      <Button
+                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-pixel text-sm h-12 disabled:opacity-50"
+                        disabled={isFinishingGame}  // ✅ Disable while finishGame is in progress
+                        onClick={() => {
+                          // Reset mission result state
+                         
+                          setMissionResult(null)
+                          // Keep the updated score and stats for HUD display
+                          // The useEffect will create a new game session automatically
+                        }}
+                      >
+                        {isFinishingGame ? 'SAVING...' : 'CONTINUE'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </Card>
             </div>
           )}

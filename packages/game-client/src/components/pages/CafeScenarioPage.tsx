@@ -665,14 +665,11 @@ export const CafeScenarioPage: React.FC<CafeScenarioPageProps> = ({
   // Handle interactive object callback
   const handleInteractiveCallback = (interactive: InteractiveObject) => {
     console.log('[CafeScenario] Interactive object:', interactive)
-
-    // Langsung trigger dialog saat interactive object di-click (tidak perlu E indicator)
     const objectName = interactive.name
-    
-    if (objectName === 'talk_bartender1') {
-      handleBartender1Interaction()
-    } else if (objectName === 'talk_bartender2') {
-      handleBartender2Interaction()
+    // Nonaktifkan interaksi bartender
+    if (objectName === 'talk_bartender1' || objectName === 'talk_bartender2') {
+      // Fungsi dinonaktifkan, tidak melakukan apapun
+      return;
     } else if (objectName === 'npc3') {
       handleNPC3Interaction()
     } else if (objectName === 'npc4') {

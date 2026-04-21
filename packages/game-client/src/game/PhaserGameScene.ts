@@ -1174,7 +1174,10 @@ export class GameScene extends Phaser.Scene {
           clickY
         )) {
           const interactive = (obj as any).getData('interactive') as InteractiveObject
-          // console.log(`[INTERACT] ✓✓✓ CLICKED ON: "${interactive.name}" at (${interactive.x}, ${interactive.y})`)
+          // Ignore bartender interactives
+          if (interactive.name === 'talk_bartender1' || interactive.name === 'talk_bartender2') {
+            return true
+          }
           this.onInteractCallback?.(interactive)
           foundClick = true
         }
@@ -1192,7 +1195,10 @@ export class GameScene extends Phaser.Scene {
     if (this.keysPressed['e'] || this.keysPressed['enter']) {
       this.physics.overlap(this.player, this.interactiveGroup, (player, interactiveObj) => {
         const interactive = (interactiveObj as any).getData('interactive') as InteractiveObject
-        // console.log(`[INTERACT] Interacting with: "${interactive.name}" at (${interactive.x}, ${interactive.y})`)
+        // Ignore bartender interactives
+        if (interactive.name === 'talk_bartender1' || interactive.name === 'talk_bartender2') {
+          return
+        }
         this.onInteractCallback?.(interactive)
       })
     }
