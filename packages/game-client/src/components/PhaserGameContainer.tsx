@@ -19,6 +19,10 @@ interface PhaserGameContainerProps {
   disabled?: boolean
   onMapLoadComplete?: () => void
   disableBarrier?: boolean
+  /**
+   * Show FPS overlay in-game (for testing only). Default: false.
+   */
+  showFps?: boolean
 }
 
 export function PhaserGameContainer({
@@ -32,6 +36,7 @@ export function PhaserGameContainer({
   disabled = false,
   onMapLoadComplete,
   disableBarrier = false,
+  showFps = false,
 }: PhaserGameContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -45,6 +50,7 @@ export function PhaserGameContainer({
     containerSelector: 'phaser-game-container',
     onTrigger,
     onInteract,
+    showFps,
   })
 
   // Show D-pad only on touch devices (mobile/tablet)

@@ -23,6 +23,11 @@ export interface GameSceneConfig extends Phaser.Types.Scenes.SettingsConfig {
   onTrigger?: (trigger: TriggerBox) => void
   onInteract?: (interactive: InteractiveObject) => void
   disableBarrier?: boolean  // Optional, defaults to false
+  /**
+   * Show built-in FPS counter overlay (for testing only).
+   * Uses Phaser's internal game loop FPS (game.loop.actualFps).
+   */
+  showFps?: boolean
 }
 
 export class GameScene extends Phaser.Scene {
@@ -57,6 +62,11 @@ export class GameScene extends Phaser.Scene {
   private onTriggerCallback?: (trigger: TriggerBox) => void
   private onInteractCallback?: (interactive: InteractiveObject) => void
 
+  // FPS overlay (optional)
+  private showFps: boolean = false
+  private fpsText?: Phaser.GameObjects.Text
+  private fpsLastUpdateMs: number = 0
+
   private collisionGroup!: Phaser.Physics.Arcade.StaticGroup
   private triggerGroup!: Phaser.Physics.Arcade.Group
   private interactiveGroup!: Phaser.Physics.Arcade.Group
@@ -73,6 +83,7 @@ export class GameScene extends Phaser.Scene {
     this.mapPath = config.mapPath
     this.onTriggerCallback = config.onTrigger
     this.onInteractCallback = config.onInteract
+    this.showFps = !!config.showFps
   }
 
   preload() {
@@ -211,6 +222,23 @@ export class GameScene extends Phaser.Scene {
       
       // Emit a custom event to signal that the scene is fully ready
       this.events.emit('scene-ready')
+
+      // FPS overlay is created after camera setup, so it stays on top and doesn't follow the camera
+      if (this.showFps) {
+        this.fpsText = this.add
+          .text(10, 10, 'FPS: --', {
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            color: '#00ff66',
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            padding: { x: 6, y: 4 },
+          })
+          .setScrollFactor(0)
+          .setDepth(1_000_000)
+
+        // If the scene uses camera fade/alpha tricks, keep FPS readable
+        this.fpsText.setAlpha(0.95)
+      }
     } catch (error) {
       console.error('Error in create:', error)
     }
@@ -918,7 +946,7 @@ export class GameScene extends Phaser.Scene {
     // })
   }
 
-  update() {
+  update(time: number, delta: number) {
     if (!this.player) return
 
     // Handle movement input
@@ -936,6 +964,16 @@ export class GameScene extends Phaser.Scene {
 
     // Update game state
     this.gameState.playerPos = { x: this.player.x, y: this.player.y }
+
+    // Update FPS label (throttled ≈ 4x/sec to minimize overhead)
+    if (this.showFps && this.fpsText) {
+      const now = typeof time === 'number' ? time : this.time.now
+      if (now - this.fpsLastUpdateMs >= 250) {
+        this.fpsLastUpdateMs = now
+        const fps = this.game?.loop?.actualFps ?? 0
+        this.fpsText.setText(`FPS: ${fps.toFixed(1)}`)
+      }
+    }
   }
 
   private handleMovement() {
