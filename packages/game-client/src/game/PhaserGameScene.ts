@@ -236,8 +236,8 @@ export class GameScene extends Phaser.Scene {
           .setScrollFactor(0)
           .setDepth(1_000_000)
 
-        // If the scene uses camera fade/alpha tricks, keep FPS readable
-        this.fpsText.setAlpha(0.95)
+        // Keep FPS readable regardless of camera alpha/fade/brightness
+        this.fpsText.setAlpha(1)
       }
     } catch (error) {
       console.error('Error in create:', error)
