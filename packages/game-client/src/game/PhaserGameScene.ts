@@ -66,6 +66,7 @@ export class GameScene extends Phaser.Scene {
   private showFps: boolean = false
   private fpsText?: Phaser.GameObjects.Text
   private fpsLastUpdateMs: number = 0
+  private uiCamera?: Phaser.Cameras.Scene2D.Camera
 
   private collisionGroup!: Phaser.Physics.Arcade.StaticGroup
   private triggerGroup!: Phaser.Physics.Arcade.Group
@@ -225,6 +226,12 @@ export class GameScene extends Phaser.Scene {
 
       // FPS overlay is created after camera setup, so it stays on top and doesn't follow the camera
       if (this.showFps) {
+        // Use a dedicated UI camera so FPS is not affected by world camera alpha/brightness
+        this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
+        this.uiCamera.setScroll(0, 0)
+        this.uiCamera.setZoom(1)
+        this.uiCamera.setAlpha(1)
+
         this.fpsText = this.add
           .text(10, 10, 'FPS: --', {
             fontFamily: 'monospace',
@@ -235,6 +242,13 @@ export class GameScene extends Phaser.Scene {
           })
           .setScrollFactor(0)
           .setDepth(1_000_000)
+
+        // Put FPS on the UI camera only (so it ignores world camera alpha)
+        if (this.uiCamera) {
+          this.uiCamera.ignore([
+            ...this.children.list.filter((obj) => obj !== this.fpsText),
+          ])
+        }
 
         // Keep FPS readable regardless of camera alpha/fade/brightness
         this.fpsText.setAlpha(1)
