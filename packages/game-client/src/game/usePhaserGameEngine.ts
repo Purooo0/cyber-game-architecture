@@ -34,7 +34,7 @@ export function usePhaserGameEngine(config: UsePhaserGameEngineConfig) {
           onTrigger: config.onTrigger,
           onInteract: config.onInteract,
           disableBarrier: false,  // Always false initially - will be disabled dynamically via method
-          showFps: config.showFps, // optional, for performance testing
+          showFps: config.showFps ?? true, // default ON globally; set false explicitly to hide
         }
         
         // Store config di ref untuk diakses oleh scene
