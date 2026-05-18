@@ -20,7 +20,9 @@ interface PhaserGameContainerProps {
   onMapLoadComplete?: () => void
   disableBarrier?: boolean
   /**
-   * Show FPS overlay in-game (for testing only). Default: false.
+   * Show FPS overlay in-game.
+   * Default: true.
+   * Set to false per-page if you want to hide it.
    */
   showFps?: boolean
 }
@@ -36,7 +38,7 @@ export function PhaserGameContainer({
   disabled = false,
   onMapLoadComplete,
   disableBarrier = false,
-  showFps = false,
+  showFps = true,
 }: PhaserGameContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(true)
