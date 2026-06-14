@@ -37,13 +37,12 @@
 node_modules/
 
 # ========================================
-# Lock Files (Platform-specific)
+# Lock Files
 # ========================================
-# These ARE committed but can be regenerated
-package-lock.json    # npm (can regenerate, but commit for consistency)
-yarn.lock           # yarn (alternative to npm)
-pnpm-lock.yaml      # pnpm (alternative to npm)
-*.lock              # Generic lock files
+# Keep npm's lockfile committed for reproducible portfolio setup.
+# Ignore alternative package-manager locks only if this repo stays on npm.
+yarn.lock
+pnpm-lock.yaml
 
 # ========================================
 # Environment Variables (SENSITIVE!)
@@ -178,7 +177,6 @@ database.json
 # Misc (that shouldn't be committed)
 # ========================================
 .DS_Store
-.env.example    # Usually should be committed, but if auto-generated, ignore
 *.orig          # Merge conflict originals
 .merges/
 

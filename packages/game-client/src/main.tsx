@@ -4,14 +4,14 @@ import App from './App'
 import './styles/globals.css'
 import { debugError } from './lib/debug'
 
+// React entry point for the Vite client.
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
 )
 
-// Capture unhandled promise rejections to help diagnose production-only errors.
-// Enabled without excessive noise: always logs as error, but only minimal formatting.
+// Capture unhandled promise rejections with compact diagnostics for production issues.
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (event) => {
     try {
@@ -23,7 +23,7 @@ if (typeof window !== 'undefined') {
         reason,
       })
     } catch {
-      // ignore
+      // Avoid crashing the global error handler itself.
     }
   })
 }

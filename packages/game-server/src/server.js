@@ -5,12 +5,12 @@ dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
+// Keep startup in one place so Vercel/serverless imports can reuse `app` safely.
 const startServer = async () => {
   try {
-    // Initialize database dengan scenarios
+    // Make sure required game content exists before accepting player sessions.
     await initializeDatabase();
     
-    // Start server
     app.listen(PORT, () => {
       console.log(`\n🚀 Server running on port ${PORT}`);
       console.log(`📍 API URL: http://localhost:${PORT}/api`);

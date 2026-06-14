@@ -1,6 +1,8 @@
 /**
- * Phaser Game Container Component
- * React component yang render Phaser 3 game
+ * React wrapper for the Phaser 3 game scene.
+ *
+ * React owns scenario state and overlays, while Phaser owns the map, sprites,
+ * physics, camera, and keyboard/touch movement.
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -111,7 +113,7 @@ export function PhaserGameContainer({
     }
   }, [gameError])
 
-  // NEW: Handle barrier disable when prop changes
+  // React can unlock specific map barriers after a dialogue or action completes.
   useEffect(() => {
     if (disableBarrier && isReady && disableBarrierMethod) {
       console.log('[PhaserGameContainer] disableBarrier prop changed to true, calling method...')
@@ -130,7 +132,7 @@ export function PhaserGameContainer({
     )
   }
 
-  // Container HARUS di-render sejak awal agar Phaser punya parent saat init
+  // Render the container from the first paint so Phaser always has a parent node.
   // Responsive layout: keep game internal resolution fixed, but scale the container to fit viewport.
   // Requirement: border/frame flexes with page size; game render code not modified.
   return (

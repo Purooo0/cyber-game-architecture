@@ -32,6 +32,13 @@ interface AppState {
   error: string | null
 }
 
+/**
+ * Root client shell.
+ *
+ * This project keeps navigation state in React instead of a router library so the
+ * game pages can preserve session-specific state while switching between
+ * landing, auth, dashboard, and scenario views.
+ */
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
     currentPage: 'landing',
@@ -45,7 +52,7 @@ const App: React.FC = () => {
     apiUrl: API_URL
   })
 
-  // Check if user is already authenticated on mount
+  // Restore a previous login session when the stored token is still valid.
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -61,19 +68,18 @@ const App: React.FC = () => {
                 currentPage: 'dashboard'
               }))
             } else {
-              // Token exists but invalid/expired - clear it silently
+              // Token exists but is invalid or expired; clear it as part of normal auth recovery.
               localStorage.removeItem('authToken')
-              // This is not an error - normal auth flow
               console.debug('[App] No valid user found, cleared invalid token')
             }
           } catch (error) {
-            // Silently handle - token was invalid
+            // Silently handle invalid tokens so returning visitors land on login cleanly.
             localStorage.removeItem('authToken')
             console.debug('[App] Auth check failed, cleared token:', error instanceof Error ? error.message : 'Unknown error')
           }
         }
       } catch (error) {
-        // Silent error - this is part of normal auth flow
+        // Treat auth bootstrap failures as expired sessions.
         console.debug('[App] Auth check error (expected if no session):', error instanceof Error ? error.message : 'Unknown error')
         localStorage.removeItem('authToken')
       }
@@ -120,7 +126,7 @@ const App: React.FC = () => {
       const result = await gameClient.register(email, password, username)
       
       if (result.success) {
-        // Auto-login after register
+        // Registration returns account data, then login stores the JWT for the app session.
         await handleLogin(email, password)
       } else {
         setState(prev => ({
@@ -162,7 +168,7 @@ const App: React.FC = () => {
   }
 
   const navigateTo = (page: string, scenarioId?: string) => {
-    // Protect dashboard and simulation pages
+    // Keep protected views behind client-side auth state; server endpoints still enforce JWT.
     if ((page === 'dashboard' || page === 'simulation') && !state.isAuthenticated) {
       setState(prev => ({ ...prev, currentPage: 'login' }))
       return
@@ -220,7 +226,7 @@ const App: React.FC = () => {
       )}
       {state.currentPage === 'simulation' && state.scenarioId && state.isAuthenticated && (
         <>
-          {/* Scenario 1: School Phishing (original SimulationPage) */}
+          {/* Mission 1: school phishing scenario. */}
           {(state.scenarioId === '1' || state.scenarioId === 'emergency-school') && (
             <SimulationPage 
               scenarioId={state.scenarioId}
@@ -229,7 +235,7 @@ const App: React.FC = () => {
             />
           )}
           
-          {/* Scenario 2: Cafe WiFi Evil Twin Attack */}
+          {/* Mission 2: cafe Wi-Fi evil twin scenario. */}
           {(state.scenarioId === '2' || state.scenarioId === 'security-wifi') && (
             <CafeScenarioPage 
               scenarioId={state.scenarioId}
@@ -238,7 +244,7 @@ const App: React.FC = () => {
             />
           )}
           
-          {/* Default: SimulationPage if scenario not recognized */}
+          {/* Unknown scenario ids fall back to the generic simulation page. */}
           {!(state.scenarioId === '1' || state.scenarioId === '2' || state.scenarioId === 'emergency-school' || state.scenarioId === 'security-wifi') && (
             <SimulationPage 
               scenarioId={state.scenarioId}

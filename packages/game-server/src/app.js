@@ -15,7 +15,7 @@ app.get("/", (req, res) => {
   res.send("Cyber Edu Game Backend is running 🚀");
 });
 
-// ✅ Health check for deployment verification
+// Health check used by local setup and deployment platforms.
 app.get('/api/health', (req, res) => {
   res.json({ ok: true })
 })
@@ -26,19 +26,20 @@ app.use("/api/game", gameRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 
 /**
- * Initialize database dengan scenarios saat start
- * Test users hanya dibuat jika INIT_TEST_USERS=true (development mode)
+ * Seed scenario data at startup.
+ *
+ * Test users are opt-in via INIT_TEST_USERS=true so production/demo
+ * deployments do not create public accounts by accident.
  */
 export const initializeDatabase = async () => {
   try {
     console.log("🔄 Initializing database...\n");
     
-    // Initialize scenarios (selalu, karena scenario adalah data game)
+    // Scenarios are part of the game content and should exist in every environment.
     await initializeScenariosInDB();
     console.log();
     
-    // Initialize default test users HANYA di development mode
-    // User seharusnya dibuat melalui register endpoint di production!
+    // Default test users are useful locally, but real users should register normally.
     const initTestUsers = process.env.INIT_TEST_USERS === "true";
     if (initTestUsers) {
       console.log("📝 TEST MODE: Initializing default test users...\n");

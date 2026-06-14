@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=packages/game-client",
-    "dev:all": "npm run dev:all --workspaces",
+    "dev:all": "concurrently \"npm run dev --workspace=packages/game-client\" \"npm run dev --workspace=packages/game-server\"",
     "build": "npm run build --workspaces",
     "preview": "npm run preview --workspace=packages/game-client",
     "server": "npm run dev --workspace=packages/game-server",
@@ -19,9 +19,5 @@
   "devDependencies": {
     "concurrently": "^8.2.0",
     "terser": "^5.46.0"
-  },
-  "dependencies": {
-    "@radix-ui/react-slot": "^1.2.4",
-    "class-variance-authority": "^0.7.1"
   }
 }
